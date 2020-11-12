@@ -166,24 +166,26 @@ bool XMLParser::parseActiveKey(bool closed) {
 
 	XMLKeyLayout *layout = (_activeKey.size() == 1) ? _XMLkeys : getParentNode(key)->layout;
 
-	if (layout->children.contains(key->name)) {
-		key->layout = layout->children[key->name];
+	if (layout) {
+		if (layout->children.contains(key->name)) {
+			key->layout = layout->children[key->name];
 
-		const StringMap &localMap = key->values;
-		int keyCount = localMap.size();
+			const StringMap &localMap = key->values;
+			int keyCount = localMap.size();
 
-		for (List<XMLKeyLayout::XMLKeyProperty>::const_iterator i = key->layout->properties.begin(); i != key->layout->properties.end(); ++i) {
-			if (i->required && !localMap.contains(i->name))
-				return parserError("Missing required property '" + i->name + "' inside key '" + key->name + "'");
-			else if (localMap.contains(i->name))
-				keyCount--;
+			for (List<XMLKeyLayout::XMLKeyProperty>::const_iterator i = key->layout->properties.begin(); i != key->layout->properties.end(); ++i) {
+				if (i->required && !localMap.contains(i->name))
+					return parserError("Missing required property '" + i->name + "' inside key '" + key->name + "'");
+				else if (localMap.contains(i->name))
+					keyCount--;
+			}
+
+			if (keyCount > 0)
+				return parserError("Unhandled property inside key '" + key->name + "'.");
+
+		} else {
+			return parserError("Unexpected key in the active scope ('" + key->name + "').");
 		}
-
-		if (keyCount > 0)
-			return parserError("Unhandled property inside key '" + key->name + "'.");
-
-	} else {
-		return parserError("Unexpected key in the active scope ('" + key->name + "').");
 	}
 
 	// check if any of the parents must be ignored.
