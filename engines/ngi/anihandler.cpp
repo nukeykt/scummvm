@@ -26,6 +26,7 @@
 #include "ngi/statics.h"
 #include "ngi/motion.h"
 #include "ngi/messages.h"
+#include "ngi/detection.h"
 
 namespace NGI {
 
@@ -144,6 +145,10 @@ MGMSubItem::MGMSubItem() {
 }
 
 void AniHandler::attachObject(int objId) {
+	if (g_nmi->getGameGID() == GID_POPOVICH) {
+		attachObject2(objId);
+		return;
+	}
 	debugC(4, kDebugPathfinding, "AniHandler::addItem(%d)", objId);
 
 	if (getIndex(objId) == -1) {
@@ -193,6 +198,49 @@ int AniHandler::getIndex(int objId) {
 			return i;
 
 	return -1;
+}
+
+void AniHandler::attachObject2(int objId) {
+	debugC(4, kDebugPathfinding, "AniHandler::attachObject2(%d)", objId);
+
+	StaticANIObject *ani = g_nmi->_currentScene->getStaticANIObject1ById(objId, -1);
+	if (!ani)
+		return;
+	attachObject2(ani);
+}
+
+void AniHandler::attachObject2(StaticANIObject *ani) {
+	int idx = getIndex(ani->_id);
+	if (idx == -1) {
+		_items.push_back(MGMItem());
+		_items.back().objId = ani->_id;
+		idx = _items.size() - 1;
+	}
+	resetData2(idx, ani);
+}
+
+void AniHandler::resetData2(int idx, StaticANIObject *obj) {
+	debugC(3, kDebugPathfinding, "AniHandler::resetData2. (1) movements1 sz: %d movements2 sz: %d", _items[idx].movements1.size(), _items[idx].movements2.size());
+
+	_items[idx].subItems.clear();
+	_items[idx].statics.clear();
+	_items[idx].movements1.clear();
+	_items[idx].movements2.clear();
+
+	debugC(1, kDebugPathfinding, "WWW rebuild. idx: %d, size: %d", idx, obj->_staticsList.size() * obj->_staticsList.size());
+	for (uint i = 0; i < obj->_staticsList.size(); i++) {
+		_items[idx].statics.push_back(obj->_staticsList[i]);
+
+		for (uint j = 0; j < obj->_staticsList.size(); j++) // Yes, square
+			_items[idx].subItems.push_back(MGMSubItem());
+	}
+
+	for (uint i = 0; i < obj->_movements.size(); i++) {
+		_items[idx].movements1.push_back(obj->_movements[i]);
+		_items[idx].movements2.push_back(0);
+	}
+
+	debugC(3, kDebugPathfinding, "AniHandler::resetData. (2) movements1 sz: %d movements2 sz: %d", _items[idx].movements1.size(), _items[idx].movements2.size());
 }
 
 MessageQueue *AniHandler::makeRunQueue(MakeQueueStruct *mkQueue) {

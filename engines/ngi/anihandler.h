@@ -96,7 +96,10 @@ protected:
 public:
 	void detachAllObjects();
 	void attachObject(int objId);
+	void attachObject2(int objId);
+	void attachObject2(StaticANIObject *ani);
 	void resetData(int objId);
+	void resetData2(int idx, StaticANIObject *ani);
 	int getIndex(int objId);
 
 	MessageQueue *makeRunQueue(MakeQueueStruct *mkQueue);

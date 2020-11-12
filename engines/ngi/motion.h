@@ -411,6 +411,91 @@ public:
 	MctlConnectionPoint();
 };
 
+struct MctlGridStruct2 {
+	int field_0;
+	int field_4;
+	int field_8;
+	Movement *field_C;
+	Common::Point field_10;
+};
+
+struct MctlGridStruct {
+	int id;
+	StaticANIObject *obj;
+	MctlGridStruct2 field_8[8];
+};
+
+struct MctlGridStruct3 {
+	int field_0;
+	int field_4;
+	int field_8;
+};
+
+struct MctlGridStruct4 {
+	int field_0;
+	int field_4;
+	int field_8;
+	int field_C;
+	int field_10;
+	int field_14;
+	int field_18;
+	MctlGridStruct3 *field_1C;
+	int field_20;
+	int field_24;
+};
+
+struct MctlGridStruct5 {
+	int field_0;
+	byte field_4;
+	int field_8;
+	int field_C;
+	int field_10;
+};
+
+typedef Common::Array<MctlGridStruct3> MctlGridStruct3Array;
+
+class MctlGrid : public MotionController {
+public:
+	Common::Array<MctlGridStruct> _items; // field_10
+	Common::Array<int> _field_24;
+	int _field_34; // 34
+	int _field_38; // 38
+	int _field_3c; // 3c
+	int _field_40; // 40
+	AniHandler _aniHandler; // field_48
+
+public:
+	MctlGrid(int width, int height);
+	~MctlGrid() override;
+
+	void attachObject(StaticANIObject *obj) override;
+	int detachObject(StaticANIObject *obj) override;
+	void detachAllObjects() override;
+	MessageQueue *startMove(StaticANIObject *subj, int xpos, int ypos, int fuzzyMatch, int staticsId) override;
+	MessageQueue *makeQueue(StaticANIObject *subj, int xpos, int ypos, int fuzzyMatch, int staticsId) override;
+
+	int findItem(int id);
+	void FUN_0044ab40(StaticANIObject *obj, MctlGridStruct *grd);
+	Common::Point FUN_0044bb10(int a1, int a2);
+	int FUN_0044ae50(int a1, int a2);
+	Common::Point FUN_0044bdf0(int a1, int a2);
+	int FUN_0044bc00(int a1, int a2);
+	int FUN_0044bc30(int a1, int a2);
+	int FUN_0044bc60(int a1, StaticANIObject *a2);
+	void FUN_0044b8c0();
+	int FUN_0044ae90(int a1, int a2, int a3, int a4, int a5, MctlGridStruct3Array &a6);
+	void FUN_0044bce0(MctlGridStruct4 &a1, MctlGridStruct3Array &a2);
+	MessageQueue *FUN_0044a6b0(MctlGridStruct4 &a1);
+	bool FUN_0044bea0(int a1, int a2, int a3, int a4);
+	Common::Point FUN_0044b820(int a1, int a2, int a3, int a4);
+	int FUN_0044be20(int a1, int a2, int a3, int a4);
+	MessageQueue *FUN_0044a800(MctlGridStruct4 &a1);
+	void FUN_0044ad10(int a1, int a2);
+	void FUN_00449b20(int a1, int a2);
+	void FUN_0044abb0();
+	void FUN_0044c670(int a1, int a2);
+};
+
 } // End of namespace NGI
 
 #endif /* NGI_MOTION_H */

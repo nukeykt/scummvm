@@ -3103,4 +3103,655 @@ bool doSomeAnimation2(int objId, int objKey) {
 	return doSomeAnimation(objId, objKey, 0);
 }
 
+int DAT_0047c218 = 80;
+
+Common::Array<MctlGridStruct5> INT_ARRAY_00480a20;
+
+int direction[8][2] = {
+	0, -1, 1, 0, 0, 1, -1, 0,
+	-1, -1, 1, -1, 1, 1, -1, 1
+};
+
+MctlGrid::MctlGrid(int width, int height) {
+	FUN_0044ad10(20, 20);
+	FUN_00449b20(width, height);
+	FUN_0044abb0();
+	// _field_44 = 0;
+}
+
+MctlGrid::~MctlGrid() {
+}
+
+void MctlGrid::attachObject(StaticANIObject *obj) {
+	debugC(4, kDebugPathfinding, "MctlGrid::attachObject(*%d)", obj->_id);
+
+	_aniHandler.detachAllObjects();
+	_aniHandler.attachObject2(obj);
+
+	int idx = findItem(obj->_id);
+	if (idx < 0)
+		return;
+
+	FUN_0044ab40(obj, &_items[idx]);
+}
+
+int MctlGrid::detachObject(StaticANIObject *obj) {
+	int idx = findItem(obj->_id);
+	if (idx >= 0) {
+		_items[idx].obj = nullptr;
+		return 1;
+	}
+	return 0;
+}
+
+void MctlGrid::detachAllObjects() {
+	for (uint i = 0; i < _items.size(); i++)
+		_items[i].obj = nullptr;
+}
+
+MessageQueue *MctlGrid::startMove(StaticANIObject *subj, int xpos, int ypos, int fuzzyMatch, int staticsId) {
+	Common::Point p = FUN_0044bb10(xpos, ypos);
+	if (FUN_0044ae50(p.x, p.y))
+		return nullptr;
+
+	if (!subj->isIdle())
+		return nullptr;
+
+	if (subj->_flags & 0x100)
+		return nullptr;
+
+	MessageQueue *queue = makeQueue(subj, xpos, ypos, fuzzyMatch, staticsId);
+
+	if (!queue)
+		return nullptr;
+
+	if (subj->_movement) {
+		if (queue->getCount() <= 1 || queue->getExCommandByIndex(0)->_messageKind != 22) {
+			int id = subj->_movement->_id;
+			Common::Point p1(subj->_movement->_ox, subj->_movement->_oy);
+
+			subj->stopAnim_maybe();
+			subj->show1(p1.x, p1.y, id, 0);
+			MessageQueue *queue2 = makeQueue(subj, xpos, ypos, fuzzyMatch, staticsId);
+			if (queue2) {
+				delete queue;
+				queue = queue2;
+			}
+		} else
+			subj->_movement = nullptr;
+	}
+
+	if (!queue->chain(subj)) {
+		delete queue;
+		queue = nullptr;
+	}
+
+	return queue;
+}
+
+MessageQueue *MctlGrid::makeQueue(StaticANIObject* subj, int xpos, int ypos, int fuzzyMatch, int staticsId) {
+	Common::Point p = FUN_0044bb10(xpos, ypos);
+	if (FUN_0044ae50(p.x, p.y))
+		return nullptr;
+	Common::Point point;
+	subj->getOXY(&point);
+
+	int v128 = _field_40 * _field_38;
+	int v3 = point.y + DAT_0047c218;
+	if (v128 < v3) {
+		subj->setOXY(point.x, v128 - DAT_0047c218);
+		v3 = v128;
+	}
+	point.y = v3;
+	p = FUN_0044bb10(point.x, point.y);
+	if (p.x == -1 || p.y == -1)
+		return nullptr;
+
+	if (FUN_0044ae50(p.x, p.y)) {
+		Common::Point p4(-1, -1);
+		Common::Point p2 = FUN_0044bdf0(p.x, p.y);
+		int dx = p2.x - point.x;
+		int dy = p2.y - point.y;
+		int v10 = _field_34 / 2 - abs(dx);
+		int v6 = _field_38 / 2 - abs(dy);
+		int v11 = -1;
+		if (dx >= 0 && v6 > v10) {
+			v11 = 3;
+		} else if (dx <= 0 && v10 < v6) {
+			v11 = 1;
+		} else if (dy >= 0 && v6 >= v10) {
+			v11 = 0;
+		} else if (dy <= 0 && v10 >= v6) {
+			v11 = 2;
+		}
+		Common::Point p3;
+
+		p3.x = p.x + direction[v11][0];
+		p3.y = p.y + direction[v11][1];
+
+		if (p3.y != _field_40 && p3.y >= 0 && p3.x != _field_3c && p3.x >= 0) {
+			if (!FUN_0044ae50(p3.x, p3.y)) {
+				p4 = FUN_0044bdf0(p3.x, p3.y);
+			}
+		}
+		if (p4.x == -1 && p4.y == -1) {
+			for (int i = 0; i < 4; i++) {
+				p3.x = p.x + direction[i][0];
+				p3.y = p.y + direction[i][1];
+				if (!FUN_0044ae50(p3.x, p3.y)) {
+					p4 = FUN_0044bdf0(p3.x, p3.y);
+					v11 = i;
+					break;
+				}
+			}
+			if (p4.x == -1 && p4.y == -1)
+				return nullptr;
+		}
+		subj->setOXY(p4.x - (_field_34 / 2 - 1) * direction[v11][0], p4.y + (_field_34 / 2 - 1) * direction[v11][0] - DAT_0047c218);
+	}
+
+	MctlGridStruct3Array arr;
+
+	int idx = findItem(subj->_id);
+	if (idx < 0)
+		return nullptr;
+
+	PicAniInfo picAniInfo;
+	subj->getPicAniInfo(picAniInfo);
+
+	int v140;
+
+	if (!subj->_movement)
+		v140 = FUN_0044bc00(idx, subj->_statics->_staticsId);
+	else
+		v140 = FUN_0044bc30(idx, subj->_movement->_id);
+
+	if (v140 == -1) {
+		v140 = FUN_0044bc60(idx, subj);
+		if (v140 == -1)
+			return nullptr;
+	}
+
+	Common::Point p5;
+	subj->getOXY(&p5);
+	p5.y += DAT_0047c218;
+	if (p5.x == xpos && p5.y == ypos) {
+		MessageQueue *mq = new MessageQueue(g_nmi->_globalMessageQueueList->compact());
+		if (!staticsId || subj->_statics->_staticsId == staticsId) {
+			ExCommand *cmd = new ExCommand(picAniInfo.objectId, 22, subj->_statics->_staticsId, 0, 0, 0, 1, 0, 0, 0);
+			cmd->_excFlags |= 3;
+			cmd->_param = picAniInfo.field_8;
+			mq->addExCommandToEnd(cmd);
+
+			Common::Point p;
+			subj->getOXY(&p);
+			cmd = new ExCommand(picAniInfo.objectId, 5, -1, p.x, p.y, 0, 1, 0, 0, 0);
+			cmd->_z = -1;
+			cmd->_excFlags |= 3;
+			cmd->_param = picAniInfo.field_8;
+			mq->addExCommandToEnd(cmd);
+		} else {
+			ExCommand *cmd = new ExCommand(picAniInfo.objectId, 22, staticsId, 0, 0, 0, 1, 0, 0, 0);
+			cmd->_excFlags |= 3;
+			cmd->_param = picAniInfo.field_8;
+			mq->addExCommandToEnd(cmd);
+
+			Common::Point p;
+			subj->getOXY(&p);
+			cmd = new ExCommand(picAniInfo.objectId, 5, -1, p.x, p.y, 0, 1, 0, 0, 0);
+			cmd->_z = -1;
+			cmd->_excFlags |= 3;
+			cmd->_param = picAniInfo.field_8;
+			mq->addExCommandToEnd(cmd);
+		}
+		subj->setPicAniInfo(picAniInfo);
+		return mq;
+	}
+	FUN_0044b8c0();
+
+	int ret = FUN_0044ae90(p5.x, p5.y, xpos, ypos, fuzzyMatch, arr);
+	if (ret == 0) {
+		MctlGridStruct4 s4;
+		memset(&s4, 0, sizeof(s4));
+		s4.field_0 = idx;
+		s4.field_4 = p.x;
+		s4.field_8 = p.y - DAT_0047c218;
+		s4.field_C = xpos;
+		s4.field_10 = ypos;
+		s4.field_14 = v140;
+		if (staticsId) {
+			s4.field_18 = FUN_0044bc00(idx, staticsId);
+		}
+		s4.field_24 = fuzzyMatch != 0;
+		FUN_0044bce0(s4, arr);
+		if (staticsId) {
+			s4.field_1C[s4.field_20 - 1].field_8 = FUN_0044bc00(idx, staticsId);
+		}
+		arr.clear();
+		MessageQueue *mq = FUN_0044a6b0(s4);
+
+		free(s4.field_1C);
+
+		return mq;
+	}
+	if (ret == 2) {
+		Common::Point p;
+		subj->getOXY(&p);
+		subj->setOXY(p.x, p.y);
+	}
+
+	return nullptr;
+}
+
+int MctlGrid::findItem(int id) {
+	for (uint i = 0; i < _items.size(); i++)
+		if (_items[i].id == id)
+			return i;
+	return -1;
+}
+
+void MctlGrid::FUN_0044ab40(StaticANIObject *obj, MctlGridStruct *grd) {
+	grd->obj = obj;
+	for (uint i = 0; i < 8; i++) {
+		grd->field_8[i].field_C = obj->getMovementById(grd->field_8[i].field_8);
+		if (grd->field_8[i].field_C) {
+			grd->field_8[i].field_10 = grd->field_8[i].field_C->calcSomeXY(0, -1);
+			grd->field_8[i].field_0 = grd->field_8[i].field_C->_staticsObj2->_staticsId;
+		}
+	}
+}
+
+Common::Point MctlGrid::FUN_0044bb10(int a1, int a2) {
+	int v2 = _field_3c * _field_40;
+	int x = 0, y = 0;
+	for (int i = 0; i < v2; i++) {
+		if (x == _field_3c) {
+			x = 0;
+			y++;
+		}
+		if (a1 <= _field_34 * (x + 1) && _field_34 * x < a1 && a2 <= (y + 1) * _field_38 && _field_38 * y < a2) {
+			Common::Point p(x, y);
+			return p;
+		}
+		if (a1 <= _field_34 * (x + 1) && _field_34 * x < a1 && a2 == 0) {
+			Common::Point p(x, y);
+			return p;
+		}
+		if (a2 <= (y + 1) * _field_38 && _field_38 * y < a2 && a1 == 0) {
+			Common::Point p(x, y);
+			return p;
+		}
+
+		x++;
+	}
+	Common::Point p(-1, -1);
+	return p;
+}
+
+int MctlGrid::FUN_0044ae50(int a1, int a2) {
+	if (a1 < _field_3c && a2 < _field_40 && a1 >= 0 && a2 >= 0)
+		return _field_24[_field_3c * a2 + a1];
+	return -1;
+}
+
+Common::Point MctlGrid::FUN_0044bdf0(int a1, int a2) {
+	Common::Point p;
+
+	p.x = a1 * _field_34 + _field_34 / 2;
+	p.y = a2 * _field_38 + _field_38 / 2;
+	return p;
+}
+
+int MctlGrid::FUN_0044bc00(int a1, int a2) {
+	for (int i = 0; i < 8; i++) {
+		if (_items[a1].field_8[i].field_4 == a2 || _items[a1].field_8[i].field_4 == a2)
+			return i;
+	}
+	return -1;
+}
+
+int MctlGrid::FUN_0044bc30(int a1, int a2) {
+	for (int i = 0; i < 8; i++) {
+		if (_items[a1].field_8[i].field_8 == a2)
+			return i;
+	}
+	return -1;
+}
+
+int MctlGrid::FUN_0044bc60(int a1, StaticANIObject* a2) {
+	int ret = -1;
+	int v4 = 0;
+	for (int i = 0; i < 8; i++) {
+		int moves = _aniHandler.getNumMovements(a2->_id, a2->_statics->_staticsId, _items[a1].field_8[i].field_4);
+		if (moves >= 0 && (ret == -1 || moves < v4)) {
+			ret = i;
+			v4 = moves;
+		}
+	}
+	return ret;
+}
+
+void MctlGrid::FUN_0044b8c0() {
+	INT_ARRAY_00480a20.clear();
+
+	MctlGridStruct5 s;
+	int x = 0, y = 0;
+	for (int i = 0; i < _field_24.size(); i++) {
+		if (x == _field_3c) {
+			x = 0;
+			y++;
+		}
+		int n = y * _field_3c + x;
+		s.field_C = y;
+		s.field_8 = x;
+		s.field_4 = 0;
+		s.field_0 = _field_24[n];
+		if (n >= INT_ARRAY_00480a20.size()) {
+			INT_ARRAY_00480a20.resize(n + 1);
+		}
+		INT_ARRAY_00480a20[n] = s;
+
+		x++;
+	}
+}
+
+int MctlGrid::FUN_0044ae90(int a1, int a2, int a3, int a4, int a5, MctlGridStruct3Array &a6) {
+	Common::Point p1 = FUN_0044bb10(a1, a2);
+	Common::Point p2 = FUN_0044bb10(a3, a4);
+	Common::List<MctlGridStruct3> list1;
+	Common::Array< MctlGridStruct3> arr1;
+	int vb4 = 0;
+
+	if (p1.x != -1 && p1.y != -1 && p2.x != -1 && p2.y != -1) {
+		int _direction[8][3];
+		for (int i = 0; i < 8; i++) {
+			_direction[i][0] = 1;
+			_direction[i][1] = direction[i][0];
+			_direction[i][2] = direction[i][1];
+		}
+		a6.clear();
+		INT_ARRAY_00480a20[_field_3c * p1.y + p1.x].field_4 = 1;
+		if (!_field_24[_field_3c * p1.y + p1.x] && !_field_24[_field_3c * p1.y + p1.x]) {
+			MctlGridStruct3 node = { p1.x, p1.y, vb4 };
+			list1.push_front(node);
+			if (FUN_0044bea0(a1, a2, a3, a4)) {
+				p2 = FUN_0044b820(a1, a2, a3, a4);
+				Common::Point p3;
+				if ((p2.x == a3 && p2.y == a4) || (p2.x == a1 && p2.y == a2) || !a5) {
+					p3 = p2;
+					if (!a5) {
+						Common::Point pp = FUN_0044bb10(a3, a4);
+						a3 = pp.x;
+						a4 = pp.y;
+						p2 = pp;
+					}
+					if (a1 == a3 && a2 == a4) {
+						return 2;
+					}
+				} else {
+					p3.x = a3;
+					p3.y = a4;
+					p3 = p2;
+				}
+				vb4 = FUN_0044be20(a1, a2, p3.x, p3.y);
+				node = { a1, a2, vb4 };
+				a6.push_back(node);
+				int v12;
+				if ((p2.x == a3 && p2.y == a4) || (p2.x == a1 && p2.y == a2)) {
+					v12 = FUN_0044be20(a1, a2, a3, a4);
+				} else {
+					vb4 = FUN_0044be20(p2.x, p2.y, a3, a4);
+					node = { p2.x, p2.y, vb4 };
+					a6.push_back(node);
+					v12 = vb4;
+				}
+				node = { a3, a4, v12 };
+				a6.push_back(node);
+				for (int i = 0; i < a6.size(); i++) {
+					a6[i].field_4 -= DAT_0047c218;
+				}
+				return 0;
+			} else {
+				while (list1.size() > 0) {
+					MctlGridStruct3 e = list1.front();
+					list1.pop_front();
+					if (e.field_0 != p2.x || e.field_4 != p2.y) {
+						for (int i = 0; i < 8; i++) {
+							int v13 = 1;
+							int v16 = 1;
+							if (_direction[i][0] == 1) {
+								int v8 = e.field_4 + direction[i][2];
+								if (v8 == _field_40 || v8 < 0)
+									v13 = 0;
+								int v8y = e.field_0 + direction[i][1];
+								if (v8y == _field_3c || v8y < 0)
+									v16 = 0;
+								int nx = e.field_0 + v16 * direction[i][1];
+								int ny = e.field_4 + v13 * direction[i][2];
+								int n = nx + ny * _field_3c;
+								MctlGridStruct5 e2 = INT_ARRAY_00480a20[n];
+								if (e2.field_4 == 0 && e2.field_0 == 0) {
+									e2.field_4 = 1;
+									e2.field_8 = e.field_0;
+									e2.field_C = e.field_4;
+									e2.field_10 = i;
+									INT_ARRAY_00480a20[n] = e2;
+									node = { nx, ny, i };
+									list1.push_back(node);
+								}
+							}
+						}
+					} else {
+						arr1.push_back(e);
+						int i = 1;
+						while (e.field_0 != p1.x || e.field_4 != p1.y) {
+							MctlGridStruct5 e2 = INT_ARRAY_00480a20[_field_3c * e.field_4 + e.field_0];
+							node = { e2.field_8, e2.field_C, e2.field_10 };
+							arr1.push_back(node);
+							e = arr1[i++];
+						}
+						break;
+					}
+				}
+			}
+			return 1;
+		}
+
+		return 2;
+	}
+
+	return 0;
+}
+
+void MctlGrid::FUN_0044bce0(MctlGridStruct4 &a1, MctlGridStruct3Array &a2) {
+	a1.field_20 = a2.size();
+	a1.field_1C = (MctlGridStruct3*)calloc(a2.size(), sizeof(MctlGridStruct3));
+	for (int i = 0; i < a2.size(); i++) {
+		a1.field_1C[i] = a2[i];
+	}
+}
+
+MessageQueue *MctlGrid::FUN_0044a6b0(MctlGridStruct4 &a1) {
+	MctlGridStruct4 s = a1;
+	s.field_C = a1.field_4;
+	s.field_10 = a1.field_8;
+	MessageQueue *mq = new MessageQueue(g_nmi->_globalMessageQueueList->compact());
+	s.field_0 = a1.field_0;
+	for (int i = 1; i < a1.field_20; i++) {
+		if (a1.field_1C[i-1].field_8 != a1.field_1C[i].field_8 || i == 1) {
+			s.field_14 = a1.field_1C[i-1].field_8;
+			s.field_18 = a1.field_1C[i].field_8;
+			s.field_24 = a1.field_24 & 1;
+			s.field_4 = s.field_C;
+			s.field_8 = s.field_10;
+			s.field_C = a1.field_1C[i].field_0;
+			s.field_10 = a1.field_1C[i].field_4;
+			MessageQueue *mq2 = FUN_0044a800(s);
+			if (!mq2) {
+				if (mq)
+					delete mq;
+				mq = nullptr;
+				break;
+			}
+			mq->mergeQueue(mq2);
+			delete mq2;
+		}
+	}
+	return mq;
+}
+
+bool MctlGrid::FUN_0044bea0(int a1, int a2, int a3, int a4) {
+	Common::Point p1 = FUN_0044bb10(a1, a2);
+	Common::Point p2 = FUN_0044bb10(a3, a4);
+	if (p1.x == p2.x && p1.y == p2.y)
+		return true;
+	for (int i = 0; i < 8; i++) {
+		if (p1.x + direction[i][0] == p2.x && p1.y + direction[i][1] == p2.y)
+			return true;
+	}
+	return false;
+}
+
+Common::Point MctlGrid::FUN_0044b820(int a1, int a2, int a3, int a4) {
+	int ret = FUN_0044be20(a1, a2, a3, a4);
+	Common::Point p;
+	if (ret != 0 && ret != 1 && ret != 2 && ret != 3)
+	{
+		int v4, v1;
+		if (abs(a1-a3) > abs(a2-a4)) {
+			v4 = 0;
+			v1 = a1 > a2 ? -1 : 1;
+		} else {
+			v1 = 0;
+			v4 = a2 > a4 ? -1 : 1;
+		}
+		while (a1 != a3 && a2 != a4)
+		{
+			a2 += v1;
+			a3 += v4;
+		}
+	}
+	p.x = a1;
+	p.y = a2;
+	return p;
+}
+
+int MctlGrid::FUN_0044be20(int a1, int a2, int a3, int a4) {
+	int dir = a2; // ?
+	if (a4 < a2 && a1 == a3)
+		dir = 0;
+	if (a1 < a3 && a2 == a4)
+		dir = 1;
+	if (a2 < a4 && a1 == a3)
+		dir = 2;
+	if (a3 < a1 && a2 == a4)
+		dir = 3;
+	if (a4 < a2) {
+		if (a1 < a3)
+			dir = 5;
+		if (a3 < a1)
+			dir = 4;
+	}
+	if (a2 < a4)
+	{
+		if (a1 < a3)
+			dir = 6;
+		if (a3 < a1)
+			dir = 7;
+	}
+	return dir;
+}
+
+MessageQueue *MctlGrid::FUN_0044a800(MctlGridStruct4 &a1) {
+	int v6 = a1.field_C;
+	int v9 = a1.field_4;
+	int v2 = a1.field_10;
+	int v3 = a1.field_8;
+	int mult, len;
+	Common::Point p = _aniHandler.getNumCycles(_items[a1.field_0].field_8[a1.field_14].field_C, v6 - v9, v2 - v3, &mult, &len, 1);
+	if (p.y == 0)
+		len++;
+	int v20 = (v2 - v3) - p.y;
+	int v24 = (v6 - v9) - p.x;
+	MessageQueue *mq = new MessageQueue(g_nmi->_globalMessageQueueList->compact());
+	ExCommand *ex = new ExCommand(_items[a1.field_0].id, 5, _items[a1.field_0].field_8[a1.field_14].field_8, a1.field_4, a1.field_8, 0, 1, 0, 0, 0);
+	ex->_z = -1;
+	ex->_param = _items[a1.field_0].obj->_odelay;
+	ex->_field_24 = 1;
+	ex->_excFlags |= 2;
+	mq->addExCommandToEnd(ex);
+	Common::Point x2, y2;
+	for (int i = 0; i < mult; i++) {
+		int plen;
+
+		if (i == mult - 1)
+			plen = len;
+		else
+			plen = -1;
+
+		ex = _aniHandler.createCommand(_items[a1.field_0].field_8[a1.field_14].field_C, _items[a1.field_0].id, 0, 0, x2, y2, plen);
+		ex->_parId = mq->_id;
+		ex->_param = _items[a1.field_0].obj->_odelay;
+
+		mq->addExCommandToEnd(ex);
+	}
+	
+	ex = new ExCommand(_items[a1.field_0].id, 22, _items[a1.field_0].field_8[a1.field_14].field_4, 0, 0, 0, 1, 0, 0, 0);
+	ex->_param = _items[a1.field_0].obj->_odelay;
+	ex->_field_24 = 1;
+	ex->_excFlags |= 3;
+	mq->addExCommandToEnd(ex);
+
+	ex = new ExCommand(_items[a1.field_0].id, 5, -1, a1.field_C, a1.field_10, 0, 1, 0, 0, 0);
+	ex->_z = -1;
+	ex->_param = _items[a1.field_0].obj->_odelay;
+	ex->_field_24 = 1;
+	ex->_excFlags |= 2;
+	mq->addExCommandToEnd(ex);
+	return mq;
+}
+
+void MctlGrid::FUN_0044ad10(int a1, int a2) {
+	if (a1 >= 100)
+		a1 = 100;
+	if (a2 >= 100)
+		a2 = 100;
+	if (a1 < 1)
+		a1 = 1;
+	if (a2 < 1)
+		a2 = 1;
+	_field_38 = a2;
+	_field_34 = a1;
+}
+
+void MctlGrid::FUN_00449b20(int a1, int a2) {
+	int w = (a1 - 1) / _field_34 + 1;
+	int h = (a2 - 1) / _field_38 + 1;
+	if (w == _field_3c && h == _field_40) {
+		FUN_0044c670(0, DAT_0047c218 / _field_38);
+		return;
+	}
+	_field_3c = w;
+	_field_40 = h;
+	_field_24.resize(w * h);
+}
+
+void MctlGrid::FUN_0044abb0() {
+	_field_24.clear();
+	_field_24.resize(_field_3c * _field_40);
+}
+
+void MctlGrid::FUN_0044c670(int a1, int a2) {
+	Common::Array<int> arr;
+	arr.resize(_field_24.size());
+	for (int i = 0; i < _field_24.size(); i++) {
+		arr[i] = _field_24[i];
+	}
+	if (_field_24.size() != a2 * _field_3c) {
+		for (int i = 0; i < _field_24.size() - a2 * _field_3c; i++) {
+			_field_24[a2 * _field_3c + i] = arr[i];
+		}
+	}
+}
+
 } // End of namespace NGI
