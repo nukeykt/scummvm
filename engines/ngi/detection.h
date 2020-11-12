@@ -29,7 +29,8 @@ namespace NGI {
 
 enum NGIGameId {
 	GID_FULLPIPE = 1,
-	GID_MDREAM
+	GID_MDREAM,
+	GID_POPOVICH,
 };
 
 struct NGIGameDescription {

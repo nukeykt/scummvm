@@ -31,6 +31,7 @@ static const PlainGameDescriptor ngiGames[] = {
 	{"ngi", 		"Nikita Game Interface game"},
 	{"fullpipe",	"Full Pipe"},
 	{"mdream",		"Magic Dream"},
+	{"popovich",	"Alyosha Popovich and Tugarin Zmey"},
 	{0, 0}
 };
 
@@ -134,6 +135,20 @@ static const NGIGameDescription gameDescriptions[] = {
 			GUIO1(GUIO_NOMIDI)
 		},
 		GID_FULLPIPE
+	},
+
+	// Alyosha Popovich and Tugarin Zmey
+	{
+		{
+			"popovich",
+			0,
+			AD_ENTRY1s("00000301.nl", "92e5bb7179cec50b0a9baf843d5a7d27", 6998624),
+			Common::RU_RUS,
+			Common::kPlatformWindows,
+			ADGF_DROPPLATFORM,
+			GUIO1(GUIO_NOMIDI)
+		},
+		GID_POPOVICH
 	},
 
 	{ AD_TABLE_END_MARKER, 0 }
