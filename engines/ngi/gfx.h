@@ -48,6 +48,7 @@ struct Bitmap {
 	int _flags;
 	int _flipping;
 	Graphics::TransparentSurface *_surface;
+	byte *_data;
 
 	Bitmap();
 	Bitmap(const Bitmap &src);
@@ -74,6 +75,8 @@ struct Bitmap {
 
 	bool isPixelHitAtPos(int x, int y);
 
+	void getDibInfo(byte *data, int dataSize);
+
 private:
 	Bitmap operator=(const Bitmap &);
 };
@@ -87,6 +90,7 @@ public:
 	void freePixelData();
 
 	bool load(MfcArchive &file) override;
+	void loadBitmap(Bitmap *bitmap);
 	void setAOIDs();
 	virtual void init();
 	void getDibInfo();
@@ -162,6 +166,8 @@ class GameObject : public CObject {
 
 	bool getPicAniInfo(PicAniInfo &info);
 	bool setPicAniInfo(const PicAniInfo &info);
+
+	void loadProperties(GameVar *gv);
 };
 
 class PictureObject : public GameObject {
@@ -172,6 +178,8 @@ public:
 
 	virtual bool load(MfcArchive &file, bool bigPicture);
 	bool load(MfcArchive &file) override { assert(0); return false; } // Disable base class
+	void loadBitmap(Bitmap *src);
+	void load2(const Common::String &filename);
 
 	Dims getDimensions() const { return _picture->getDimensions(); }
 	void draw();

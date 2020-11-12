@@ -22,6 +22,7 @@
 
 #include "ngi/ngi.h"
 
+#include "ngi/detection.h"
 #include "ngi/objects.h"
 #include "ngi/gfx.h"
 #include "ngi/statics.h"
@@ -134,6 +135,22 @@ bool PictureObject::load(MfcArchive &file, bool bigPicture) {
 #endif
 
 	return true;
+}
+
+void PictureObject::loadBitmap(Bitmap *src) {
+	_picture = new Picture();
+	_picture->loadBitmap(src);
+}
+
+void PictureObject::load2(const Common::String &filename) {
+	_picture = new Picture();
+	_picture->load2(filename);
+	// _ox2 = _ox = _picture->_x;
+	// _oy2 = _oy = _picture->_y;
+	// _priority = _picture->field_50;
+	_ox2 = _ox = 0;
+	_oy2 = _oy = 0;
+	_priority = 0;
 }
 
 void PictureObject::draw() {
@@ -400,6 +417,15 @@ bool GameObject::setPicAniInfo(const PicAniInfo &picAniInfo) {
 	return false;
 }
 
+void GameObject::loadProperties(GameVar *gv) {
+	_id = gv->getPropertyAsInt("id");
+	setOXY(gv->getPropertyAsInt("x"), gv->getPropertyAsInt("y"));
+	_priority = gv->getPropertyAsInt("z");
+	setFlags(gv->getPropertyAsInt("dwFlags"));
+	_field_8 = gv->getPropertyAsInt("dwPersistFlags");
+	_objectName = gv->getPropertyAsString("title");
+}
+
 Picture::Picture() :
 	_x(0),
 	_y(0),
@@ -477,6 +503,14 @@ bool Picture::load(MfcArchive &file) {
 	return true;
 }
 
+void Picture::loadBitmap(Bitmap *bitmap) {
+	_convertedBitmap.reset(bitmap);
+	_data = bitmap->_data;
+	_dataSize = bitmap->_dataSize + 32;
+	_width = bitmap->_width;
+	_height = bitmap->_height;
+}
+
 void Picture::setAOIDs() {
 	int w = (g_nmi->_pictureScale + _width - 1) / g_nmi->_pictureScale;
 	int h = (g_nmi->_pictureScale + _height - 1) / g_nmi->_pictureScale;
@@ -501,6 +535,11 @@ void Picture::init() {
 	getDibInfo();
 
 	_bitmap->_flags |= 0x1000000;
+
+	if (g_nmi->getGameGID() == GID_POPOVICH) {
+		_width = _bitmap->_width;
+		_height = _bitmap->_height;
+	}
 }
 
 void Picture::getDibInfo() {
@@ -530,6 +569,8 @@ void Picture::getDibInfo() {
 	_bitmap->load(s);
 	delete s;
 
+	_bitmap->_data = _data;
+	_bitmap->_dataSize = off - 32;
 	_bitmap->decode(_data, _paletteData.size ? _paletteData : *g_nmi->_globalPalette);
 }
 
@@ -698,6 +739,7 @@ Bitmap::Bitmap() {
 	_flags = 0;
 	_flipping = Graphics::FLIP_NONE;
 	_surface = nullptr;
+	_data = nullptr;
 }
 
 Bitmap::Bitmap(const Bitmap &src) {
@@ -743,6 +785,28 @@ bool Bitmap::isPixelHitAtPos(int x, int y) {
 		return false;
 
 	return ((*((int32 *)_surface->getBasePtr(x - _x, y - _y)) & 0xff) != 0);
+}
+
+void Bitmap::getDibInfo(byte *data, int dataSize) {
+	int off = dataSize & ~0xf;
+
+	debugC(9, kDebugLoading, "Bitmap::getDibInfo: _dataSize: %d", dataSize);
+
+	if (!dataSize) {
+		warning("Bitmap::getDibInfo(): Empty data size");
+		return;
+	}
+
+	if (dataSize != off) {
+		warning("Uneven data size: 0x%x", dataSize);
+	}
+
+	Common::MemoryReadStream *s = new Common::MemoryReadStream(data + off - 32, 32);
+	load(s);
+	delete s;
+
+	_data = data;
+	_dataSize = off - 32;
 }
 
 void Bitmap::decode(byte *pixels, const Palette &palette) {

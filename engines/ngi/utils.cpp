@@ -25,7 +25,9 @@
 #include "common/file.h"
 #include "common/memstream.h"
 #include "common/ptr.h"
+#include "common/xmlparser.h"
 
+#include "ngi/detection.h"
 #include "ngi/objects.h"
 #include "ngi/motion.h"
 #include "ngi/ngiarchive.h"
@@ -137,6 +139,20 @@ bool MemoryObject::load(MfcArchive &file) {
 	}
 
 	return true;
+}
+
+void MemoryObject::load2(const Common::String &filename) {
+	debugC(5, kDebugLoading, "MemoryObject::load()");
+	_memfilename = filename;
+
+	while (_memfilename.contains('\\')) {
+		_memfilename.deleteChar(0);
+	}
+
+	if (g_nmi->_currArchive) {
+		_mfield_14 = 0;
+		_libHandle = g_nmi->_currArchive;
+	}
 }
 
 void MemoryObject::loadFile(const Common::String &filename) {
@@ -467,6 +483,16 @@ Common::String genFileName(int superId, int sceneId, const char *ext) {
 	return s;
 }
 
+Common::String genFileName2(int sceneId, int id) {
+	Common::String s;
+
+	s = Common::String::format("%08d\\%08d.%03d", sceneId, sceneId, id);
+
+	debugC(7, kDebugLoading, "genFileName2: %s", s.c_str());
+
+	return s;
+}
+
 // Translates cp-1251..utf-8
 byte *transCyrillic(const Common::String &str) {
 	const byte *s = (const byte *)str.c_str();
@@ -559,6 +585,7 @@ void NGIEngine::loadGameObjH() {
 		int key = strtol(ptr, NULL, 10);
 
 		_gameObjH[(uint16)key] = val;
+		_gameObjH2[val] = (uint16)key;
 	}
 }
 
@@ -567,6 +594,44 @@ Common::String NGIEngine::gameIdToStr(uint16 id) {
 		return _gameObjH[id];
 
 	return Common::String::format("%d", id);
+}
+
+
+XMLLoader::XMLLoader(const Common::String &xmlFile) :
+		_root(0),
+		_currentNode(0),
+		Common::XMLParser(),
+		_xmlFile(xmlFile) {
+}
+
+bool XMLLoader::keyCallback(ParserNode *node) {
+	if (!_root) {
+		_currentNode = new GameVar();
+		_currentNode->loadXML(node->name, node->values);
+		_root = _currentNode;
+	} else {
+		GameVar *subVar = new GameVar();
+		subVar->loadXML(node->name, node->values);
+		_currentNode->addSubVar(subVar);
+		_currentNode = subVar;
+	}
+	return true;
+}
+
+bool XMLLoader::closedKeyCallback(ParserNode *node) {
+	if (_currentNode)
+		_currentNode = _currentNode->_parentVarObj;
+	return true;
+}
+
+GameVar *XMLLoader::parseXML() {
+	if (!loadFile(_xmlFile))
+		return nullptr;
+
+	if (!parse())
+		error("Error parsing: %s", _xmlFile.c_str());
+
+	return _root;
 }
 
 } // End of namespace NGI

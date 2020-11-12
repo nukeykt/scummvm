@@ -94,6 +94,9 @@ struct EntranceInfo {
 	int32 _messageQueueId;
 	int32 _field_130;
 
+	char title[100];
+	char entrfunct[100];
+
 	bool load(MfcArchive &file);
 };
 

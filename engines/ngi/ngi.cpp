@@ -273,7 +273,7 @@ Common::Error NGIEngine::run() {
 
 	_isSaveAllowed = false;
 
-	if (debugChannelSet(-1, kDebugXML))
+	if (debugChannelSet(-1, kDebugXML) || getGameGID() == GID_POPOVICH)
 		loadGameObjH();
 
 	int scene = 0;
@@ -292,6 +292,11 @@ Common::Error NGIEngine::run() {
 		if (!loadGam("new.gam", scene))
 			return Common::kNoGameDataFoundError;
 		break;
+	case GID_POPOVICH:
+		if (!loadGam("popovich.xml", scene))
+			return Common::kNoGameDataFoundError;
+		break;
+
 	default:
 		warning("Unknown GID");
 		return Common::kUnsupportedGameidError;

@@ -276,6 +276,13 @@ void gameLoaderSavegameCallback(MfcArchive *archive, bool mode) {
 			g_nmi->_mapTable[i] = archive->readUint32LE();
 }
 
+bool GameLoader::loadFile(const Common::String &fname)
+{
+	if (g_nmi->getGameGID() == GID_POPOVICH)
+		return loadXML(fname);
+	return CObject::loadFile(fname);
+}
+
 bool NGIEngine::loadGam(const char *fname, int scene) {
 	_gameLoader.reset(new GameLoader());
 
@@ -401,11 +408,16 @@ GameVar::GameVar() {
 	_parentVarObj = 0;
 	_nextVarObj = 0;
 	_prevVarObj = 0;
-	_field_14 = 0;
+	_properties = 0;
 	_varType = 0;
 	_value.floatValue = 0;
 
 	_objtype = kObjTypeGameVar;
+}
+
+void GameVar::loadXML(const Common::String &name, const Common::StringMap &values) {
+	_varName = name;
+	addProperties(values);
 }
 
 GameVar::~GameVar() {
@@ -415,8 +427,8 @@ GameVar::~GameVar() {
 	if (_parentVarObj && !_prevVarObj ) {
 		if (_parentVarObj->_subVars == this) {
 			_parentVarObj->_subVars = _nextVarObj;
-		} else if (_parentVarObj->_field_14 == this) {
-			_parentVarObj->_field_14 = _nextVarObj;
+		} else if (_parentVarObj->_properties == this) {
+			_parentVarObj->_properties = _nextVarObj;
 		} else {
 			_parentVarObj = 0;
 		}
@@ -438,11 +450,11 @@ GameVar::~GameVar() {
 		s = _subVars;
 	}
 
-	s = _field_14;
+	s = _properties;
 
 	while (s) {
 		delete s;
-		s = _field_14;
+		s = _properties;
 	}
 }
 
@@ -480,7 +492,7 @@ bool GameVar::load(MfcArchive &file) {
 	_parentVarObj = file.readClass<GameVar>();
 	_prevVarObj = file.readClass<GameVar>();
 	_nextVarObj = file.readClass<GameVar>();
-	_field_14 = file.readClass<GameVar>();
+	_properties = file.readClass<GameVar>();
 	_subVars = file.readClass<GameVar>();
 	file.decLevel();
 
@@ -585,6 +597,131 @@ GameVar *GameVar::getSubVarByIndex(int idx) {
 	}
 
 	return sub;
+}
+
+void GameVar::addProperties(const Common::StringMap &values) {
+	for (Common::StringMap::iterator i = values.begin(); i != values.end(); ++i) {
+		addProperty(i->_key, i->_value);
+	}
+}
+
+bool GameVar::addProperty(const Common::String &key, const Common::String &value) {
+	GameVar *var = new GameVar();
+	var->_varName = key;
+	var->setVar(value);
+	if (var->_varType == 2 && g_nmi->_gameObjH2.contains(var->_value.stringValue)) {
+		free(var->_value.stringValue);
+		var->_varType = 0;
+		var->_value.intValue = g_nmi->_gameObjH2[var->_value.stringValue];
+	}
+	if (!addPropertyVar(var)) {
+		delete var;
+		return false;
+	}
+	return true;
+}
+
+void GameVar::setVar(const Common::String &value) {
+	if (value.size() == 0)
+		return;
+	if (value[0] == '-' || value[0] == ',' || (value[0] >= '0' && value[0] <= '9')) {
+
+		if (value.find('.') != value.npos) {
+			_varType = 1;
+			setVarAsFloat(atof(value.c_str()));
+		} else {
+			_varType = 0;
+			setVarAsInt(atoi(value.c_str()));
+		}
+	} else {
+		_varType = 2;
+		setVarAsString(value);
+	}
+}
+
+bool GameVar::setVarAsString(const Common::String &value) {
+	if (_varType != 2)
+		return 0;
+	if (_value.stringValue)
+		free(_value.stringValue);
+	_value.stringValue = (char *)calloc(value.size() + 1, 1);
+	Common::strlcpy(_value.stringValue, value.c_str(), value.size() + 1);
+	return 1;
+}
+
+bool GameVar::setVarAsFloat(const float value) {
+	if (_varType != 1)
+		return 0;
+	_value.floatValue = value;
+	return 1;
+}
+
+bool GameVar::setVarAsInt(const int value) {
+	if (_varType != 0)
+		return 0;
+	_value.intValue = value;
+	return 1;
+}
+
+bool GameVar::addPropertyVar(GameVar *propertyVar) {
+	GameVar *var = _properties;
+
+	if (var) {
+		for (GameVar *i = var->_nextVarObj; i; i = i->_nextVarObj)
+			var = i;
+
+		var->_nextVarObj = propertyVar;
+		propertyVar->_prevVarObj = var;
+		propertyVar->_parentVarObj = this;
+
+		return true;
+	} else {
+		_properties = propertyVar;
+		propertyVar->_parentVarObj = this;
+
+		return true;
+	}
+
+	return false;
+}
+
+GameVar *GameVar::getPropertyByName(const Common::String &name) {
+	GameVar *pv = 0;
+
+	if (_properties != 0) {
+		pv = _properties;
+		for (;pv && scumm_stricmp(pv->_varName.c_str(), name.c_str()); pv = pv->_nextVarObj)
+			;
+	}
+	return pv;
+}
+
+Common::String GameVar::getPropertyAsString(const Common::String &name) {
+	GameVar *pv = getPropertyByName(name);
+	if (!pv)
+		return nullptr;
+	if (pv->_varType != 2)
+		return nullptr;
+	return pv->_value.stringValue;
+}
+
+int GameVar::getPropertyAsInt(const Common::String &name) {
+	GameVar *pv = getPropertyByName(name);
+	if (!pv)
+		return 0;
+	if (pv->_varType != 0)
+		return 0;
+	return pv->_value.intValue;
+}
+
+int GameVar::getSubVarsCountByName(const Common::String& name) {
+	int count = 0;
+
+	for (GameVar *sv = _subVars; sv; sv = sv->_nextVarObj) {
+		if (!scumm_stricmp(sv->_varName.c_str(), name.c_str()))
+			count++;
+	}
+	return count;
 }
 
 bool PicAniInfo::load(MfcArchive &file) {

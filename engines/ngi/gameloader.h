@@ -122,6 +122,11 @@ class GameLoader : public CObject {
 
 	void restoreDefPicAniInfos();
 
+	bool loadFile(const Common::String &fname);
+	bool loadXML(const Common::String &fname);
+	void loadSceneXML(GameVar *gv);
+	void addSceneXML(int sceneId, const Common::String &fname);
+
 	Common::ScopedPtr<GameProject> _gameProject;
 	InteractionController *_interactionController;
 	InputController *_inputController;

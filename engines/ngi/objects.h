@@ -80,7 +80,7 @@ class GameVar : public CObject {
 	GameVar *_prevVarObj;
 	GameVar *_parentVarObj;
 	GameVar *_subVars;
-	GameVar *_field_14;
+	GameVar *_properties;
 	Common::String _varName;
 	VarValue _value;
 	int _varType;
@@ -89,6 +89,7 @@ class GameVar : public CObject {
 	GameVar();
 	~GameVar() override;
 
+	void loadXML(const Common::String &name, const Common::StringMap &values);
 	bool load(MfcArchive &file) override;
 	void save(MfcArchive &file) override;
 	GameVar *getSubVarByName(const Common::String &name);
@@ -98,6 +99,17 @@ class GameVar : public CObject {
 	bool addSubVar(GameVar *subvar);
 	int getSubVarsCount();
 	GameVar *getSubVarByIndex(int idx);
+	void addProperties(const Common::StringMap &values);
+	bool addProperty(const Common::String &key, const Common::String &value);
+	void setVar(const Common::String &value);
+	bool setVarAsString(const Common::String &value);
+	bool setVarAsFloat(const float value);
+	bool setVarAsInt(const int value);
+	bool addPropertyVar(GameVar *propertyVar);
+	GameVar *getPropertyByName(const Common::String &name);
+	Common::String getPropertyAsString(const Common::String &name);
+	int getPropertyAsInt(const Common::String &name);
+	int getSubVarsCountByName(const Common::String &name);
 };
 
 } // End of namespace NGI

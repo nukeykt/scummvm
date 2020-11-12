@@ -103,6 +103,7 @@ struct Palette {
 };
 
 typedef Common::HashMap<uint16, Common::String> GameObjHMap;
+typedef Common::HashMap<Common::String, uint16> GameObjHMap2;
 
 int global_messageHandler1(ExCommand *cmd);
 int global_messageHandler2(ExCommand *cmd);
@@ -364,6 +365,7 @@ public:
 	bool _stream2playing;
 
 	GameObjHMap _gameObjH;
+	GameObjHMap2 _gameObjH2;
 
 public:
 

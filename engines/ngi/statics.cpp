@@ -31,6 +31,7 @@
 
 #include "ngi/constants.h"
 #include "ngi/objectnames.h"
+#include "ngi/detection.h"
 
 namespace NGI {
 
@@ -888,6 +889,16 @@ Common::Point *StaticANIObject::calcNextStep(Common::Point *pRes) {
 	pRes->y = resY;
 
 	return pRes;
+}
+
+Common::Point *StaticANIObject::getOXY(Common::Point *point) {
+	if (g_nmi->getGameGID() == GID_POPOVICH && _movement) {
+		point->x = _movement->_ox;
+		point->y = _movement->_oy;
+	}
+	point->x = _ox;
+	point->y = _oy;
+	return point;
 }
 
 void StaticANIObject::stopAnim_maybe() {
@@ -1806,6 +1817,10 @@ int Movement::countPhasesWithFlag(int maxidx, int flag) {
 
 void Movement::setDynamicPhaseIndex(int index) {
 	debugC(7, kDebugAnimation, "Movement::setDynamicPhaseIndex(%d)", index);
+	if (g_nmi->getGameGID() == GID_POPOVICH && _currDynamicPhaseIndex == index) {
+		updateCurrDynamicPhase();
+		return;
+	}
 	while (_currDynamicPhaseIndex < index)
 		gotoNextFrame(0, 0);
 

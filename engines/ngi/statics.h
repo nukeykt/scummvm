@@ -256,6 +256,8 @@ public:
 	void stopAnim_maybe();
 	Common::Point *calcNextStep(Common::Point *point);
 
+	Common::Point *getOXY(Common::Point *point);
+
 	MessageQueue *changeStatics1(int msgNum);
 	void changeStatics2(int objId);
 

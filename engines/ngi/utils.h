@@ -27,11 +27,13 @@
 #include "common/hash-str.h"
 #include "common/array.h"
 #include "common/file.h"
+#include "common/xmlparser.h"
 
 namespace NGI {
 
 class CObject;
 class NGIArchive;
+class GameVar;
 
 typedef Common::HashMap<void *, int> ObjHash;
 
@@ -157,11 +159,13 @@ class MemoryObject : CObject {
 	~MemoryObject() override;
 
 	bool load(MfcArchive &file) override;
+	void load2(const Common::String &filename);
 	void loadFile(const Common::String &filename);
 	void load() { loadFile(_memfilename); }
 	byte *getData();
 	byte *loadData();
 	int getDataSize() const { return _dataSize; }
+	void setFlag(int value) { if (value) _mflags |= 1; else _mflags &= ~1; }
 
 	bool testFlags();
 
@@ -193,7 +197,22 @@ class DWordArray : public Common::Array<int32>, public CObject {
 };
 
 Common::String genFileName(int superId, int sceneId, const char *ext);
+Common::String genFileName2(int sceneId, int id);
 byte *transCyrillic(const Common::String &str);
+
+class XMLLoader : public Common::XMLParser {
+protected:
+	GameVar *_root, *_currentNode;
+	Common::String _xmlFile;
+public:
+	XMLLoader(const Common::String &xmlFile);
+
+	bool keyCallback(ParserNode *node) override;
+	bool closedKeyCallback(ParserNode *node) override;
+	void buildLayout() override { _XMLkeys = nullptr; }
+	bool isValidNameChar(char c) override { return Common::isAlnum(c) || c == '_' || c == '.' || ((byte)c >= 192 && (byte)c <= 255); };
+	GameVar *parseXML();
+};
 
 } // End of namespace NGI
 

@@ -32,6 +32,8 @@
 #include "ngi/scenes.h"
 #include "ngi/floaters.h"
 
+#include "common/memstream.h"
+
 namespace NGI {
 
 Inventory2 *getGameLoaderInventory() {
@@ -149,6 +151,384 @@ bool GameLoader::load(MfcArchive &file) {
 	_gameVar = file.readClass<GameVar>();
 
 	return true;
+}
+
+bool GameLoader::loadXML(const Common::String &fname) {
+	debugC(1, kDebugLoading, "GameLoader::loadXML()");
+
+	XMLLoader *xmlLoader = new XMLLoader(fname);
+	_gameVar = xmlLoader->parseXML();
+	if (!_gameVar)
+		return false;
+
+	_gameProject.reset(new GameProject());
+
+	_gameName = _gameVar->getPropertyAsString("title");
+	debugC(1, kDebugLoading, "_gameName: %s", _gameName.c_str());
+
+	_gameProject.reset(new GameProject());
+
+	g_nmi->_gameProjectVersion = 12; // FIXME
+	g_nmi->_gameProject = _gameProject.get();
+
+	GameVar *gv = _gameVar->_subVars;
+	while (gv != nullptr) {
+		if (gv->_varName == "SCENE") {
+			loadSceneXML(gv);
+		} else if (gv->_varName == "PASSAGE") {
+
+		} else if (gv->_varName == "INTERACTIONS") {
+
+		} else if (gv->_varName == "INVENTORY") {
+
+		} else if (gv->_varName == "LOGIC") {
+
+		} else if (gv->_varName == "INPUTCONTROLLER") {
+
+		} else if (gv->_varName == "INPUTCONTROLLER") {
+
+		}
+		gv = gv->_nextVarObj;
+	}
+
+	return true;
+}
+
+PictureObject *LoadPicXML(GameVar *gv, const Common::String &filePrefix) {
+	int id = gv->getPropertyAsInt("Id");
+	Common::String fileName = Common::String::format("%s%08d.dib", filePrefix.c_str(), id);
+	PictureObject *picObj = new PictureObject();
+	picObj->load2(fileName);
+	picObj->loadProperties(gv);
+	byte alpha = (byte)gv->getPropertyAsInt("nAlpha");
+	if (alpha)
+		picObj->_picture->setAlpha(alpha);
+	picObj->setOXY2();
+	return picObj;
+}
+
+Statics *LoadStaticsXML(GameVar *gv, const Common::String &filePrefix) {
+	if (gv->getPropertyAsInt("nIdMirror"))
+		return nullptr;
+	int id = gv->getPropertyAsInt("id");
+	Common::String fileName = Common::String::format("%s%08d.dib", filePrefix.c_str(), id);
+	Statics *statics = new Statics();
+	statics->load2(fileName);
+	statics->_staticsName = gv->getPropertyAsString("title");
+	statics->_staticsId = id;
+	return statics;
+}
+
+ObjstateCommand *LoadStateXML(GameVar *gv) {
+	ObjstateCommand *ObjstateCmd;
+	int kind = gv->getPropertyAsInt("iId");
+	if (kind == 63) {
+		ObjstateCmd = new ObjstateCommand();
+		ObjstateCmd->_objCommandName = gv->getPropertyAsString("sObject");
+		ObjstateCmd->_value = gv->getPropertyAsInt("dwState");
+		ObjstateCmd->_messageKind = 63;
+		ObjstateCmd->_parentId = gv->getPropertyAsInt("oWho");
+		ObjstateCmd->_x = gv->getPropertyAsInt("cpXY.x");
+		ObjstateCmd->_y = gv->getPropertyAsInt("cpXY.y");
+		ObjstateCmd->_sceneClickX = gv->getPropertyAsInt("cpXYStep.x");
+		ObjstateCmd->_sceneClickY = gv->getPropertyAsInt("cpXYStep.y");
+		ObjstateCmd->_field_30 = gv->getPropertyAsInt("cpReserved.x");
+		ObjstateCmd->_field_34 = gv->getPropertyAsInt("cpReserved.y");
+		ObjstateCmd->_z = gv->getPropertyAsInt("iZ");
+		ObjstateCmd->_invId = gv->getPropertyAsInt("iZStep");
+		ObjstateCmd->_param = gv->getPropertyAsInt("iReserved");
+		ObjstateCmd->_field_2C = gv->getPropertyAsInt("iReserved2");
+		ObjstateCmd->_messageNum = gv->getPropertyAsInt("iNum");
+		ObjstateCmd->_excFlags = gv->getPropertyAsInt("dwFlags");
+		ObjstateCmd->_parId = gv->getPropertyAsInt("dwParent");
+		ObjstateCmd->_field_24 = gv->getPropertyAsInt("bWait");
+		ObjstateCmd->_field_3C = gv->getPropertyAsInt("bFree");
+	} else {
+		ObjstateCmd = new ObjstateCommand();
+		ObjstateCmd->_messageKind = kind;
+		ObjstateCmd->_parentId = gv->getPropertyAsInt("oWho");
+		ObjstateCmd->_x = gv->getPropertyAsInt("cpXY.x");
+		ObjstateCmd->_y = gv->getPropertyAsInt("cpXY.y");
+		ObjstateCmd->_sceneClickX = gv->getPropertyAsInt("cpXYStep.x");
+		ObjstateCmd->_sceneClickY = gv->getPropertyAsInt("cpXYStep.y");
+		ObjstateCmd->_field_30 = gv->getPropertyAsInt("cpReserved.x");
+		ObjstateCmd->_field_34 = gv->getPropertyAsInt("cpReserved.y");
+		ObjstateCmd->_z = gv->getPropertyAsInt("iZ");
+		ObjstateCmd->_invId = gv->getPropertyAsInt("iZStep");
+		ObjstateCmd->_param = gv->getPropertyAsInt("iReserved");
+		ObjstateCmd->_field_2C = gv->getPropertyAsInt("iReserved2");
+		ObjstateCmd->_messageNum = gv->getPropertyAsInt("iNum");
+		ObjstateCmd->_excFlags = gv->getPropertyAsInt("dwFlags");
+		ObjstateCmd->_parId = gv->getPropertyAsInt("dwParent");
+		ObjstateCmd->_field_24 = gv->getPropertyAsInt("bWait");
+		ObjstateCmd->_field_3C = gv->getPropertyAsInt("bFree");
+	}
+	return ObjstateCmd;
+}
+
+Movement *LoadMovementXML(GameVar *gv, const Common::String &filePrefix, StaticANIObject *aniObj) {
+	if (gv->getPropertyAsInt("nIdMirror"))
+		return nullptr;
+	Movement *movement;
+	int id = gv->getPropertyAsInt("id");
+	movement->_id = id;
+	movement->_objectName = gv->getPropertyAsString("title");
+	int prevId = gv->getPropertyAsInt("nIdPrev"), nextId = gv->getPropertyAsInt("nIdNext");
+	for (Common::Array<Statics*>::iterator st = aniObj->_staticsList.begin(); st != aniObj->_staticsList.end(); st++) {
+		if ((*st)->_staticsId == prevId)
+			movement->_staticsObj1 = *st;
+		if ((*st)->_staticsId == nextId)
+			movement->_staticsObj2 = *st;
+		if (movement->_staticsObj1 && movement->_staticsObj2)
+			break;
+	}
+	movement->_mx = gv->getPropertyAsInt("nPrevStepX");
+	movement->_my = gv->getPropertyAsInt("nPrevStepY");
+	movement->_m2x = gv->getPropertyAsInt("nNextStepX");
+	movement->_m2y = gv->getPropertyAsInt("nNextStepY");
+	movement->_counterMax = gv->getPropertyAsInt("dwLoopDelay");
+	if (gv->getPropertyAsInt("bUseAuto"))
+		movement->_field_50 = 0;
+	Common::String movPrefix = Common::String::format("%s%08d\\", filePrefix.c_str(), movement->_id);
+	int phase = 0;
+	int dynCount = gv->getPropertyAsInt("dwNumPhases");
+	movement->_framePosOffsets.resize(dynCount);
+	for (GameVar *k = gv->_subVars; k; k = k->_nextVarObj) {
+		if (k->_varName == "PHASE") {
+			movement->_framePosOffsets[phase].x = k->getPropertyAsInt("csStep.x");
+			movement->_framePosOffsets[phase].y = k->getPropertyAsInt("csStep.y");
+			phase++;
+			Common::String fileName = Common::String::format("%s%08d.%03d", movPrefix.c_str(), movement->_id, phase);
+			DynamicPhase *dynPhase = new DynamicPhase();
+			dynPhase->load2(fileName);
+			for (GameVar *l = k->_subVars; l; l = l->_nextVarObj) {
+				if (l->_varName == "COMMAND") {
+					ObjstateCommand *ObjstateCmd = LoadStateXML(l);
+					dynPhase->_exCommand.reset(ObjstateCmd);
+					if (ObjstateCmd) {
+						ObjstateCmd->_field_3C = 0;
+					}
+				}
+			}
+			dynPhase->_initialCountdown = k->getPropertyAsInt("iPouse");
+			movement->_dynamicPhases.push_back(dynPhase);
+		}
+	}
+	DynamicPhase *last = movement->_dynamicPhases.back();
+	if (last)
+		delete last;
+	movement->_dynamicPhases.push_back(movement->_staticsObj2);
+	return movement;
+}
+
+StaticANIObject *LoadAniXML(GameVar *gv, const Common::String &filePrefix) {
+	if (gv->getPropertyAsInt("iCopy"))
+		return nullptr;
+	StaticANIObject *aniObj = new StaticANIObject();
+	aniObj->loadProperties(gv);
+	Common::String aniPrefix = Common::String::format("%s%08d\\", filePrefix.c_str(), aniObj->_id);
+	for (GameVar *j = gv->_subVars; j; j = j->_nextVarObj) {
+		if (j->_varName == "STATICS") {
+			Statics *statics = LoadStaticsXML(j, aniPrefix);
+			if (statics)
+				aniObj->_staticsList.push_back(statics);
+		} else if (j->_varName == "MOVEMENT") {
+			Movement *movement = LoadMovementXML(j, aniPrefix, aniObj);
+			if (movement)
+				aniObj->_movements.push_back(movement);
+		}
+	}
+	if (aniObj->_field_8 & 0x10000)
+		aniObj->setFlags(aniObj->_flags | 4);
+	return aniObj;
+}
+
+void LoadEntranceXML(EntranceInfo *entrance, GameVar *gv) {
+	memset(entrance, 0, sizeof(EntranceInfo));
+	Common::String title = gv->getPropertyAsString("title");
+	if (!title.empty()) {
+		strncpy(entrance->title, title.c_str(), 99);
+	}
+	Common::String entrfunct = gv->getPropertyAsString("entrfunct");
+	if (!entrfunct.empty()) {
+		strncpy(entrance->entrfunct, entrfunct.c_str(), 99);
+	}
+	entrance->_sceneId = gv->getPropertyAsInt("nIdScene");
+	entrance->_field_4 = gv->getPropertyAsInt("nIdHind");
+	entrance->_messageQueueId = gv->getPropertyAsInt("nIdQueue");
+}
+
+MessageQueue *LoadQueueXML(GameVar *gv) {
+	MessageQueue *queue = new MessageQueue();
+	queue->_queueName = gv->getPropertyAsString("title");
+	queue->_dataId = gv->getPropertyAsInt("iDataId");
+	queue->setFlags(gv->getSubVarAsInt("dwFlags"));
+	queue->_parId = gv->getSubVarAsInt("iParentId");
+	for (GameVar *i = gv->_subVars; i; i = i->_nextVarObj) {
+		if (i->_varName == "COMMAND") {
+			ExCommand *cmd = static_cast<ExCommand*>(LoadStateXML(i));
+			if (cmd) {
+				cmd->_excFlags |= 2;
+				queue->addExCommandToEnd(cmd);
+			}
+		}
+	}
+	return queue;
+}
+
+void LoadPicAniInfoXML(PicAniInfo *aniInfo, GameVar *gv) {
+	aniInfo->type = gv->getPropertyAsInt("dwObjType");
+	aniInfo->objectId = gv->getPropertyAsInt("nId");
+	aniInfo->field_8 = gv->getPropertyAsInt("iCopy");
+	aniInfo->sceneId = gv->getPropertyAsInt("nParentScene");
+	aniInfo->ox = gv->getPropertyAsInt("x");
+	aniInfo->oy = gv->getPropertyAsInt("y");
+	aniInfo->priority = gv->getPropertyAsInt("z");
+	aniInfo->staticsId = gv->getPropertyAsInt("nIdStatics");
+	aniInfo->movementId = gv->getPropertyAsInt("nIdMovement");
+	aniInfo->dynamicPhaseIndex = gv->getPropertyAsInt("nMovementPhase");
+	aniInfo->flags = gv->getPropertyAsInt("wFlags");
+	aniInfo->field_24 =gv->getPropertyAsInt("dwExFlags");
+	aniInfo->someDynamicPhaseIndex = gv->getPropertyAsInt("nStopPhase");
+}
+
+ReactPolygonal *LoadReactPolygonalXML(GameVar *gv) {
+	ReactPolygonal *react = new ReactPolygonal();
+	int numPoints = gv->getPropertyAsInt("iNumPoints");
+	react->_points.resize(numPoints);
+	int point = 0;
+	for (; gv; gv->_nextVarObj, point++) {
+		react->_points[point].x = gv->getPropertyAsInt("x");
+		react->_points[point].y = gv->getPropertyAsInt("y");
+	}
+	react->createRegion();
+	return react;
+}
+
+MctlCompound *LoadMctlCompoundXML(GameVar *gv) {
+	MctlCompound *mctlCompound = new MctlCompound();
+	GameVar *sv = gv->_subVars;
+	for (int i = 0; i < gv->getPropertyAsInt("nNumChildren"); i++) {
+		MctlItem *mctlItem = new MctlItem();
+		if (sv) {
+			if (sv->_varName == "MCTLREACTZONE") {
+				ReactPolygonal *react = LoadReactPolygonalXML(sv);
+				mctlItem->_movGraphReactObj.reset(react);
+				sv = sv->_nextVarObj;
+				if (sv) {
+					if (sv->_varName == "MCTLGRID") {
+						// MctlGrid
+					}
+				}
+			}
+		}
+	}
+	return mctlCompound;
+
+}
+
+void GameLoader::loadSceneXML(GameVar *gv)
+{
+	Common::String xmlFile = gv->getPropertyAsString("szXmlFile");
+	if (!xmlFile.empty()) {
+		int sceneId = gv->getPropertyAsInt("id");
+		addSceneXML(sceneId, xmlFile);
+		return;
+	}
+	else
+	{
+		Scene *scene = new Scene();
+		scene->_sceneName = gv->getPropertyAsString("title");
+		scene->_sceneId = gv->getPropertyAsInt("id");
+		scene->_lowDetailId = gv->getPropertyAsInt("LowDetailId");
+		int objStateCount = gv->getSubVarsCountByName("OBJSTATE");
+		int entranceCount = gv->getSubVarsCountByName("ENTRANCE");
+		scene->_bigPictureXDim = gv->getPropertyAsInt("nPartsX");
+		scene->_bigPictureYDim = gv->getPropertyAsInt("nPartsY");
+
+		debugC(6, kDebugLoading, "bigPictureArray[%d][%d]", scene->_bigPictureXDim, scene->_bigPictureYDim);
+
+		bool type = 0;
+		Dims dim;
+		int width, height;
+		width = 0;
+		for (uint i = 0; i < scene->_bigPictureXDim; ++i) {
+			height = 0;
+			for (uint j = 0; j < scene->_bigPictureYDim; ++j) {
+				scene->_bigPictureArray.push_back(new BigPicture());
+				Common::String fileName = genFileName2(scene->_sceneId, j * scene->_bigPictureXDim + i);
+				scene->_bigPictureArray[i]->load2(fileName);
+				scene->_bigPictureArray[i]->init();
+				dim = scene->_bigPictureArray[i]->getDimensions();
+				height += dim.y;
+				int bitmapType = scene->_bigPictureArray[i]->getConvertedBitmap()->_type;
+				if (bitmapType == MKTAG('C', 'B', 0x88, 0x88) || bitmapType == MKTAG('C', 'B', 0x80, 0x08)
+					|| bitmapType == MKTAG('C', 'B', 0x08, 0x88))
+					type = 1;
+			}
+			width += dim.x;
+		}
+
+		byte *data = (byte*)calloc(36, 1);
+		
+		Common::MemoryWriteStream *s = new Common::MemoryWriteStream(data + 4, 32);
+
+		s->writeSint32LE(0); // x
+		s->writeSint32LE(0); // y
+		s->writeUint32LE(width); // width
+		s->writeUint32LE(height); // height
+		s->writeUint32LE(0); // pixels
+		s->writeUint32LE(type ? MKTAG('C', 'B', 0x88, 0x88) : MKTAG('C', 'B', 0x05, 0x65)); // type
+		s->writeUint32LE(0); // flags
+
+		delete s;
+
+		Bitmap *bitmap = new Bitmap();
+		bitmap->getDibInfo(data, 36);
+
+		PictureObject *picObj = new PictureObject();
+		picObj->loadBitmap(bitmap);
+		picObj->_picture->setFlag(1);
+		scene->_picObjList.insert_at(0, picObj);
+
+		Common::Array<EntranceInfo> entranceArray;
+		Common::Array<PicAniInfo> objStateArray;
+
+		entranceArray.resize(entranceCount);
+		objStateArray.resize(objStateCount);
+
+		int entrance = 0;
+		int objState = 0;
+
+		MctlCompound *mctlCompound = nullptr;
+
+		Common::String filePrefix = Common::String::format("%08d\\", scene->_sceneId);
+		for (GameVar *i = gv->_subVars; i; i = i->_nextVarObj) {
+			if (i->_varName == "PICTURE") {
+				PictureObject *picObj = LoadPicXML(i, filePrefix);
+				scene->_picObjList.push_back(picObj);
+			} else if (i->_varName == "ANI") {
+				StaticANIObject *aniObj = LoadAniXML(i, filePrefix);
+				if (aniObj) {
+					aniObj->_sceneId = scene->_sceneId;
+					scene->addStaticANIObject(aniObj, true);
+				}
+			} else if (i->_varName == "ENTRANCE") {
+				LoadEntranceXML(&entranceArray[entrance], i);
+				entrance++;
+			} else if (i->_varName == "QUEUE") {
+				scene->_messageQueueList.push_back(LoadQueueXML(i));
+			} else if (i->_varName == "OBJSTATE") {
+				LoadPicAniInfoXML(&objStateArray[objState], i);
+				objState++;
+			} else if (i->_varName == "MCTLCOMPOUND") {
+				mctlCompound = LoadMctlCompoundXML(i);
+			}
+		}
+	}
+}
+
+void GameLoader::addSceneXML(int sceneId, const Common::String &fname) {
 }
 
 bool GameLoader::loadScene(int sceneId) {

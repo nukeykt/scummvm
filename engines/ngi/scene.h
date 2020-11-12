@@ -44,6 +44,7 @@ class Scene : public Background {
 	Common::String _sceneName;
 	int _field_BC;
 	Common::ScopedPtr<NGIArchive> _libHandle;
+	int _lowDetailId;
 
   public:
 	Scene();
