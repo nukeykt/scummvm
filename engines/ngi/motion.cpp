@@ -3107,7 +3107,7 @@ int DAT_0047c218 = 80;
 
 Common::Array<MctlGridStruct5> INT_ARRAY_00480a20;
 
-int direction[8][2] = {
+const int direction[8][2] = {
 	0, -1, 1, 0, 0, 1, -1, 0,
 	-1, -1, 1, -1, 1, 1, -1, 1
 };
@@ -3752,6 +3752,68 @@ void MctlGrid::FUN_0044c670(int a1, int a2) {
 			_field_24[a2 * _field_3c + i] = arr[i];
 		}
 	}
+}
+
+void MctlGrid::loadFromXML(GameVar *gv) {
+	FUN_0044ad10(gv->getPropertyAsInt("cellX"), gv->getPropertyAsInt("cellY"));
+	FUN_00449b20(gv->getPropertyAsInt("gridX"), gv->getPropertyAsInt("gridY"));
+	FUN_0044abb0();
+	for (GameVar *sv = gv->_subVars; sv; sv = sv->_nextVarObj) {
+		if (sv->_varName == "CELLS") {
+			int from = sv->getPropertyAsInt("iFrom");
+			int number = sv->getPropertyAsInt("iNumber");
+			int value = sv->getPropertyAsInt("iValue");
+			for (int i = 0; i < number; i++) {
+				_field_24[from + i] = value;
+			}
+		} else if (sv->_varName == "ANIDESC") {
+			loadAniDesc(sv);
+		}
+	}
+}
+
+void MctlGrid::loadAniDesc(GameVar *gv) {
+	MctlGridStruct st;
+	memset(&st, 0, sizeof(st));
+	Common::String dirStr;
+	st.id = gv->getPropertyAsInt("nIdObject");
+	for (int i = 0; i < 8; i++) {
+		switch (i)
+		{
+		case 0:
+			dirStr = "N";
+			break;
+		case 1:
+			dirStr = "E";
+			break;
+		case 2:
+			dirStr = "S";
+			break;
+		case 3:
+			dirStr = "W";
+			break;
+		case 4:
+			dirStr = "NW";
+			break;
+		case 5:
+			dirStr = "NE";
+			break;
+		case 6:
+			dirStr = "SE";
+			break;
+		case 7:
+			dirStr = "SW";
+			break;
+		default:
+			break;
+		}
+		GameVar *sv = gv->getSubVarWithPropertyValue("dir", dirStr);
+		if (!sv)
+			return;
+		st.field_8[i].field_8 = sv->getPropertyAsInt("nIdMovement");
+		st.field_8[i].field_4 = sv->getPropertyAsInt("nIdStatics");
+	}
+	_items.push_back(st);
 }
 
 } // End of namespace NGI

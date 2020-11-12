@@ -494,6 +494,8 @@ public:
 	void FUN_00449b20(int a1, int a2);
 	void FUN_0044abb0();
 	void FUN_0044c670(int a1, int a2);
+	void loadFromXML(GameVar *gv);
+	void loadAniDesc(GameVar *gv);
 };
 
 } // End of namespace NGI

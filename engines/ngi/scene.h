@@ -105,6 +105,7 @@ class SceneTag : public CObject {
 
  public:
 	SceneTag();
+	SceneTag(Scene *scene);
 	~SceneTag() override;
 
 	bool load(MfcArchive &file) override;

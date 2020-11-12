@@ -344,6 +344,24 @@ bool MessageQueue::load(MfcArchive &file) {
 	return true;
 }
 
+ExCommand *LoadStateXML(GameVar *gv);
+
+void MessageQueue::loadFromXML(GameVar *gv) {
+	_queueName = gv->getPropertyAsString("title");
+	_dataId = gv->getPropertyAsInt("iDataId");
+	setFlags(gv->getPropertyAsInt("dwFlags"));
+	_parId = gv->getPropertyAsInt("iParentId");
+	for (GameVar *sv = gv->_subVars; sv; sv = sv->_nextVarObj) {
+		if (sv->_varName == "COMMAND") {
+			ExCommand *exCmd = LoadStateXML(sv);
+			if (exCmd) {
+				exCmd->_excFlags |= 2;
+				_exCommands.push_back(exCmd);
+			}
+		}
+	}
+}
+
 bool MessageQueue::chain(StaticANIObject *ani) {
 	if (checkGlobalExCommandList1() && checkGlobalExCommandList2()) {
 		if (!(getFlags() & kInGlobalQueue)) {

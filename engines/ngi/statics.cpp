@@ -2211,4 +2211,6 @@ bool StaticPhase::load(MfcArchive &file) {
 	return true;
 }
 
+
+
 } // End of namespace NGI

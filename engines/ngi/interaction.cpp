@@ -417,6 +417,29 @@ Interaction *InteractionController::getInteractionByObjectIds(int obId, int obId
 	return 0;
 }
 
+void InteractionController::loadInteractionsFromXML(GameVar *gv) {
+	_defaultHeroId = gv->getPropertyAsInt("nDefaultHeroId");
+	for (GameVar *sv = gv->_subVars; sv; sv = sv->_nextVarObj) {
+		if (sv->_varName == "INTERACTION") {
+			Interaction *interaction = new Interaction();
+			interaction->_objectId1 = sv->getPropertyAsInt("nObjectId");
+			interaction->_objectId2 = sv->getPropertyAsInt("nHeroId");
+			interaction->_objectId3 = sv->getPropertyAsInt("nInvId");
+			interaction->_staticsId1 = sv->getPropertyAsInt("nObjStaticsId");
+			interaction->_staticsId2 = sv->getPropertyAsInt("nHeroStaticsId");
+			interaction->_objectState1 = sv->getPropertyAsInt("dwHeroStateMask");
+			interaction->_objectState2 = sv->getPropertyAsInt("dwObjStateMask");
+			interaction->_xOffs = sv->getPropertyAsInt("ptOfs.x");
+			interaction->_yOffs = sv->getPropertyAsInt("ptOfs.y");
+			interaction->_sceneId = sv->getPropertyAsInt("nSceneTag");
+			interaction->_flags = sv->getPropertyAsInt("dwFlags");
+			interaction->_messageQueue = new MessageQueue();
+			interaction->_messageQueue->loadFromXML(sv->_subVars);
+			_interactions.push_back(interaction);
+		}
+	}
+}
+
 Interaction::Interaction() {
 	_objectId1 = 0;
 	_objectId2 = 0;

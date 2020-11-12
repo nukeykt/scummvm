@@ -403,6 +403,18 @@ bool GameProject::load(MfcArchive &file) {
 	return true;
 }
 
+void GameProject::addSceneTag(Scene *scene) {
+	_sceneTagList->push_back(SceneTag(scene));
+}
+
+SceneTag *GameProject::findSceneTagById(int sceneId) {
+	for (SceneTagList::iterator i = _sceneTagList->begin(); i != _sceneTagList->end(); i++) {
+		if (i->_sceneId == sceneId)
+			return &(*i);
+	}
+	return nullptr;
+}
+
 GameVar::GameVar() {
 	_subVars = 0;
 	_parentVarObj = 0;
@@ -722,6 +734,53 @@ int GameVar::getSubVarsCountByName(const Common::String& name) {
 			count++;
 	}
 	return count;
+}
+
+GameVar *GameVar::getSubVarWithPropertyValue(const Common::String &name, const Common::String &value) {
+	for (GameVar *sv = _subVars; sv; sv = sv->_nextVarObj) {
+		GameVar *pv = getPropertyByName(name);
+		if (pv && pv->_varType == 2 && !scumm_stricmp(pv->_value.stringValue, value.c_str()))
+			return sv;
+	}
+	return nullptr;
+}
+
+void GameVar::clone(GameVar *gv, int a3, int a4) {
+	_varName = gv->_varName;
+	_varType = gv->_varType;
+	if (_varType == 2) {
+		int l = strlen(gv->_value.stringValue) + 1;
+		_value.stringValue = (char*)calloc(l, 1);
+		memcpy(_value.stringValue, gv->_value.stringValue, l);
+	} else {
+		_value.intValue = gv->_value.intValue;
+	}
+	_parentVarObj = nullptr;
+	_prevVarObj = nullptr;
+	if (gv->_properties) {
+		GameVar *pv = new GameVar();
+		pv->clone(gv->_properties, 1, 1);
+		_properties = pv;
+		for (; pv; pv = pv->_nextVarObj)
+			pv->_parentVarObj = this;
+	} else {
+		_properties = nullptr;
+	}
+	if (a3 && gv->_subVars) {
+		GameVar *sv = new GameVar();
+		sv->clone(gv->_subVars, 1, 1);
+		_subVars = sv;
+		for (; sv; sv = sv->_nextVarObj)
+			sv->_parentVarObj = this;
+	} else {
+		_subVars = nullptr;
+	}
+	if (a4 && gv->_nextVarObj) {
+		GameVar *nv = new GameVar();
+		nv->clone(gv->_nextVarObj, a3, 1);
+		_nextVarObj = nv;
+		nv->_prevVarObj = this;
+	}
 }
 
 bool PicAniInfo::load(MfcArchive &file) {

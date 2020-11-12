@@ -265,6 +265,13 @@ public:
 	bool isPixelHitAtPos(int x, int y);
 };
 
+class GridObject : public GameObject {
+public:
+public:
+	GridObject();
+	~GridObject() override;
+};
+
 } // End of namespace NGI
 
 #endif /* NGI_STATICS_H */

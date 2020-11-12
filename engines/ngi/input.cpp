@@ -119,6 +119,77 @@ void InputController::setCursor(int cursorId) {
 	}
 }
 
+void InputController::loadFromXML(GameVar *gv) {
+	clean();
+	_sceneId = gv->getPropertyAsInt("nIdScene");
+}
+
+void InputController::loadSceneFromXML(int sceneId, GameVar *gv) {
+	int idx = findScene(sceneId);
+	if (idx < 0) {
+		InputControllerStruct1 s1;
+		memset(&s1, 0, sizeof(s1));
+		s1.sceneId = sceneId;
+		_field_68.push_back(s1);
+		idx = findScene(sceneId);
+	}
+	InputControllerStruct1 *ss = &_field_68[idx];
+	ss->objectCursorId.clear();
+	ss->borderPoint.clear();
+	int minObj = 0;
+	int maxObj = 0;
+	for (GameVar *sv = gv->_subVars; sv; sv = sv->_nextVarObj) {
+		if (sv->_varName == "CURSORCONTEXT") {
+			int objId = sv->getPropertyAsInt("nIdOjbect");
+			if (objId < minObj || minObj == 0)
+				minObj = objId;
+			if (objId > maxObj)
+				maxObj = objId;
+		}
+	}
+	if (maxObj > 0) {
+		ss->objectCount = maxObj - minObj + 1;
+		ss->objectCursorId.resize(ss->objectCount);
+		for (int i = 0; i < ss->objectCount; i++)
+			ss->objectCursorId[i] = 0;
+	}
+	ss->borderPointCount = gv->getSubVarsCountByName("BORDERPOINT");
+	ss->borderPoint.resize(ss->borderPointCount);
+	for (int i = 0; i < ss->borderPointCount; i++) {
+		ss->borderPoint[i].x = 0;
+		ss->borderPoint[i].y = 0;
+	}
+	int point = 0;
+	for (GameVar *sv = gv->_subVars; sv; sv = sv->_nextVarObj) {
+		if (sv->_varName == "CURSORCONTEXT") {
+			int cursorId = sv->getPropertyAsInt("nIdCursor");
+			int objId = sv->getPropertyAsInt("nIdOjbect");
+			ss->objectCursorId[objId - minObj] = cursorId;
+		} else if (sv->_varName == "BORDERPOINT") {
+			int x = sv->getPropertyAsInt("x");
+			int y = sv->getPropertyAsInt("y");
+			ss->borderPoint[point].x = x;
+			ss->borderPoint[point].y = y;
+		}
+	}
+	ss->minObjId = minObj;
+	ss->maxObjId = maxObj;
+}
+
+int InputController::findScene(int sceneId) {
+	for (int i = 0; i < _field_68.size(); i++) {
+		if (_field_68[i].sceneId == sceneId)
+			return i;
+	}
+	return -1;
+}
+
+void InputController::clean() {
+	_field_68.clear();
+	_field_2C = 0;
+	_field_28 = 0;
+}
+
 void NGIEngine::setCursor(int id) {
 	if (_inputController)
 		_inputController->setCursor(id);

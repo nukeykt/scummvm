@@ -72,6 +72,11 @@ SceneTag::SceneTag() :
 	_scene(nullptr),
 	_sceneId(0) {}
 
+SceneTag::SceneTag(Scene *scene) {
+	_scene = scene;
+	_sceneId = scene->_sceneId;
+}
+
 SceneTag::~SceneTag() {
 	delete _scene;
 }

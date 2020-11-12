@@ -51,6 +51,7 @@ class Inventory : public CObject {
 	Inventory() { _sceneId = 0; }
 
 	bool load(MfcArchive &file) override;
+	void loadFromXML(GameVar *gv);
 
 	int getInventoryPoolItemIndexById(int itemId);
 	uint getItemsPoolCount() { return _itemsPool.size(); }

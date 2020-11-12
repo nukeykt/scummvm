@@ -53,6 +53,7 @@ class Sc2 : public CObject {
 	PicAniInfoList _picAniInfos;
 	bool _isLoaded;
 	Common::Array<EntranceInfo> _entranceData;
+	Common::String _sceneFile;
 
  public:
 	Sc2();
@@ -95,6 +96,13 @@ struct SaveHeader {
 	int32 encSize;
 };
 
+struct Passage {
+	int srcSceneId;
+	int srcHintId;
+	int destSceneId;
+	int destHintId;
+};
+
 class GameLoader : public CObject {
  public:
 	GameLoader();
@@ -105,6 +113,7 @@ class GameLoader : public CObject {
 	bool gotoScene(int sceneId, int entranceId);
 	bool preloadScene(int sceneId, int entranceId);
 	bool unloadScene(int sceneId);
+	Scene *loadScene2(int sceneId);
 
 	void addPreloadItem(const PreloadItem &item);
 
@@ -125,7 +134,11 @@ class GameLoader : public CObject {
 	bool loadFile(const Common::String &fname);
 	bool loadXML(const Common::String &fname);
 	void loadSceneXML(GameVar *gv);
+	bool loadSceneXML(int sceneId);
 	void addSceneXML(int sceneId, const Common::String &fname);
+
+	Sc2 *findSc2(int sceneId);
+	void makeSc2(Scene *scene);
 
 	Common::ScopedPtr<GameProject> _gameProject;
 	InteractionController *_interactionController;
@@ -139,11 +152,13 @@ class GameLoader : public CObject {
 	int16 _field_FA;
 	PreloadItems _preloadItems;
 	GameVar *_gameVar;
+	GameVar *_logicVar;
 	Common::String _gameName;
 	ExCommand _exCommand;
 	int _updateCounter;
 	int _preloadSceneId;
 	int _preloadEntranceId;
+	Common::Array<Passage> _passageArray;
 };
 
 const char *getSavegameFile(int saveGameIdx);

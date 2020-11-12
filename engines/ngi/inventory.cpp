@@ -493,6 +493,25 @@ void Inventory2::clear() {
 	_inventoryItems.clear();
 }
 
+void Inventory::loadFromXML(GameVar *gv) {
+	_sceneId = gv->getPropertyAsInt("InvSceneId");
+	for (GameVar *sv = gv->_subVars; sv; sv = sv->_nextVarObj) {
+		if (sv->_varName == "INVITEM") {
+			InventoryPoolItem item;
+			memset(&item, 0, sizeof(item));
+			item.id = sv->getPropertyAsInt("wId");
+			item.pictureObjectNormal = sv->getPropertyAsInt("wImgInPlace");
+			item.pictureObjectId1 = sv->getPropertyAsInt("wImgOnCursor");
+			item.pictureObjectHover = sv->getPropertyAsInt("wImgInPlaceHot");
+			item.pictureObjectSelected = sv->getPropertyAsInt("wImgInPlaceSelected");
+			item.field_A = sv->getPropertyAsInt("wMax");
+			item.field_C = sv->getPropertyAsInt("nState");
+			item.flags = sv->getPropertyAsInt("dwFlags");
+			_itemsPool.push_back(item);
+		}
+	}
+}
+
 void NGIEngine::getAllInventory() {
 	Inventory2 *inv = getGameLoaderInventory();
 

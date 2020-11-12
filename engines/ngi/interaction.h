@@ -67,13 +67,14 @@ class InteractionController : public CObject {
 public:
 	typedef ObList<Interaction> InteractionList;
 	bool _flag24;
+	int _defaultHeroId;
 
  private:
 	InteractionList _interactions;
 	static bool compareInteractions(const Interaction *i1, const Interaction *i2);
 
  public:
-	InteractionController() : _flag24(true) {}
+	InteractionController() : _flag24(true), _defaultHeroId(0) {}
 	~InteractionController() override;
 
 	bool load(MfcArchive &file) override;
@@ -86,6 +87,8 @@ public:
 	bool handleInteraction(StaticANIObject *subj, GameObject *obj, int invId);
 
 	Interaction *getInteractionByObjectIds(int obId, int obId2, int obId3);
+
+	void loadInteractionsFromXML(GameVar *gv);
 };
 
 struct EntranceInfo {

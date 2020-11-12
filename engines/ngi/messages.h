@@ -130,6 +130,8 @@ class MessageQueue : public CObject {
 
 	bool load(MfcArchive &file) override;
 
+	void loadFromXML(GameVar *gv);
+
 	int getFlags() { return _flags; }
 	void setFlags(int flags) { _flags = flags; }
 

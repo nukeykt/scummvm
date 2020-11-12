@@ -31,6 +31,8 @@
 #include "ngi/constants.h"
 #include "ngi/scenes.h"
 #include "ngi/floaters.h"
+#include "ngi/ngiarchive.h"
+#include "ngi/detection.h"
 
 #include "common/memstream.h"
 
@@ -161,12 +163,11 @@ bool GameLoader::loadXML(const Common::String &fname) {
 	if (!_gameVar)
 		return false;
 
-	_gameProject.reset(new GameProject());
-
 	_gameName = _gameVar->getPropertyAsString("title");
 	debugC(1, kDebugLoading, "_gameName: %s", _gameName.c_str());
 
 	_gameProject.reset(new GameProject());
+	_gameProject->_sceneTagList.reset(new SceneTagList());
 
 	g_nmi->_gameProjectVersion = 12; // FIXME
 	g_nmi->_gameProject = _gameProject.get();
@@ -176,15 +177,23 @@ bool GameLoader::loadXML(const Common::String &fname) {
 		if (gv->_varName == "SCENE") {
 			loadSceneXML(gv);
 		} else if (gv->_varName == "PASSAGE") {
+			Passage passage;
+			passage.srcSceneId = gv->getPropertyAsInt("nIdSrcScene");
+			passage.srcHintId = gv->getPropertyAsInt("nIdSrcHint");
+			passage.destSceneId = gv->getPropertyAsInt("nIdDestScene");
+			passage.destHintId = gv->getPropertyAsInt("nIdDestHint");
+			_passageArray.push_back(passage);
 
 		} else if (gv->_varName == "INTERACTIONS") {
-
+			_interactionController->loadInteractionsFromXML(gv);
 		} else if (gv->_varName == "INVENTORY") {
-
+			_inventory.loadFromXML(gv);
 		} else if (gv->_varName == "LOGIC") {
-
+			GameVar *lv = new GameVar();
+			lv->clone(gv, 1, 0);
+			_logicVar = lv;
 		} else if (gv->_varName == "INPUTCONTROLLER") {
-
+			_inputController->loadFromXML(gv);
 		} else if (gv->_varName == "INPUTCONTROLLER") {
 
 		}
@@ -219,51 +228,51 @@ Statics *LoadStaticsXML(GameVar *gv, const Common::String &filePrefix) {
 	return statics;
 }
 
-ObjstateCommand *LoadStateXML(GameVar *gv) {
-	ObjstateCommand *ObjstateCmd;
+ExCommand *LoadStateXML(GameVar *gv) {
 	int kind = gv->getPropertyAsInt("iId");
 	if (kind == 63) {
-		ObjstateCmd = new ObjstateCommand();
-		ObjstateCmd->_objCommandName = gv->getPropertyAsString("sObject");
-		ObjstateCmd->_value = gv->getPropertyAsInt("dwState");
-		ObjstateCmd->_messageKind = 63;
-		ObjstateCmd->_parentId = gv->getPropertyAsInt("oWho");
-		ObjstateCmd->_x = gv->getPropertyAsInt("cpXY.x");
-		ObjstateCmd->_y = gv->getPropertyAsInt("cpXY.y");
-		ObjstateCmd->_sceneClickX = gv->getPropertyAsInt("cpXYStep.x");
-		ObjstateCmd->_sceneClickY = gv->getPropertyAsInt("cpXYStep.y");
-		ObjstateCmd->_field_30 = gv->getPropertyAsInt("cpReserved.x");
-		ObjstateCmd->_field_34 = gv->getPropertyAsInt("cpReserved.y");
-		ObjstateCmd->_z = gv->getPropertyAsInt("iZ");
-		ObjstateCmd->_invId = gv->getPropertyAsInt("iZStep");
-		ObjstateCmd->_param = gv->getPropertyAsInt("iReserved");
-		ObjstateCmd->_field_2C = gv->getPropertyAsInt("iReserved2");
-		ObjstateCmd->_messageNum = gv->getPropertyAsInt("iNum");
-		ObjstateCmd->_excFlags = gv->getPropertyAsInt("dwFlags");
-		ObjstateCmd->_parId = gv->getPropertyAsInt("dwParent");
-		ObjstateCmd->_field_24 = gv->getPropertyAsInt("bWait");
-		ObjstateCmd->_field_3C = gv->getPropertyAsInt("bFree");
-	} else {
-		ObjstateCmd = new ObjstateCommand();
-		ObjstateCmd->_messageKind = kind;
-		ObjstateCmd->_parentId = gv->getPropertyAsInt("oWho");
-		ObjstateCmd->_x = gv->getPropertyAsInt("cpXY.x");
-		ObjstateCmd->_y = gv->getPropertyAsInt("cpXY.y");
-		ObjstateCmd->_sceneClickX = gv->getPropertyAsInt("cpXYStep.x");
-		ObjstateCmd->_sceneClickY = gv->getPropertyAsInt("cpXYStep.y");
-		ObjstateCmd->_field_30 = gv->getPropertyAsInt("cpReserved.x");
-		ObjstateCmd->_field_34 = gv->getPropertyAsInt("cpReserved.y");
-		ObjstateCmd->_z = gv->getPropertyAsInt("iZ");
-		ObjstateCmd->_invId = gv->getPropertyAsInt("iZStep");
-		ObjstateCmd->_param = gv->getPropertyAsInt("iReserved");
-		ObjstateCmd->_field_2C = gv->getPropertyAsInt("iReserved2");
-		ObjstateCmd->_messageNum = gv->getPropertyAsInt("iNum");
-		ObjstateCmd->_excFlags = gv->getPropertyAsInt("dwFlags");
-		ObjstateCmd->_parId = gv->getPropertyAsInt("dwParent");
-		ObjstateCmd->_field_24 = gv->getPropertyAsInt("bWait");
-		ObjstateCmd->_field_3C = gv->getPropertyAsInt("bFree");
+		ObjstateCommand *objstateCmd = new ObjstateCommand();
+		objstateCmd->_objCommandName = gv->getPropertyAsString("sObject");
+		objstateCmd->_value = gv->getPropertyAsInt("dwState");
+		objstateCmd->_messageKind = 63;
+		objstateCmd->_parentId = gv->getPropertyAsInt("oWho");
+		objstateCmd->_x = gv->getPropertyAsInt("cpXY.x");
+		objstateCmd->_y = gv->getPropertyAsInt("cpXY.y");
+		objstateCmd->_sceneClickX = gv->getPropertyAsInt("cpXYStep.x");
+		objstateCmd->_sceneClickY = gv->getPropertyAsInt("cpXYStep.y");
+		objstateCmd->_field_30 = gv->getPropertyAsInt("cpReserved.x");
+		objstateCmd->_field_34 = gv->getPropertyAsInt("cpReserved.y");
+		objstateCmd->_z = gv->getPropertyAsInt("iZ");
+		objstateCmd->_invId = gv->getPropertyAsInt("iZStep");
+		objstateCmd->_param = gv->getPropertyAsInt("iReserved");
+		objstateCmd->_field_2C = gv->getPropertyAsInt("iReserved2");
+		objstateCmd->_messageNum = gv->getPropertyAsInt("iNum");
+		objstateCmd->_excFlags = gv->getPropertyAsInt("dwFlags");
+		objstateCmd->_parId = gv->getPropertyAsInt("dwParent");
+		objstateCmd->_field_24 = gv->getPropertyAsInt("bWait");
+		objstateCmd->_field_3C = gv->getPropertyAsInt("bFree");
+		return objstateCmd;
 	}
-	return ObjstateCmd;
+	ExCommand *exCmd;
+	exCmd = new ExCommand();
+	exCmd->_messageKind = kind;
+	exCmd->_parentId = gv->getPropertyAsInt("oWho");
+	exCmd->_x = gv->getPropertyAsInt("cpXY.x");
+	exCmd->_y = gv->getPropertyAsInt("cpXY.y");
+	exCmd->_sceneClickX = gv->getPropertyAsInt("cpXYStep.x");
+	exCmd->_sceneClickY = gv->getPropertyAsInt("cpXYStep.y");
+	exCmd->_field_30 = gv->getPropertyAsInt("cpReserved.x");
+	exCmd->_field_34 = gv->getPropertyAsInt("cpReserved.y");
+	exCmd->_z = gv->getPropertyAsInt("iZ");
+	exCmd->_invId = gv->getPropertyAsInt("iZStep");
+	exCmd->_param = gv->getPropertyAsInt("iReserved");
+	exCmd->_field_2C = gv->getPropertyAsInt("iReserved2");
+	exCmd->_messageNum = gv->getPropertyAsInt("iNum");
+	exCmd->_excFlags = gv->getPropertyAsInt("dwFlags");
+	exCmd->_parId = gv->getPropertyAsInt("dwParent");
+	exCmd->_field_24 = gv->getPropertyAsInt("bWait");
+	exCmd->_field_3C = gv->getPropertyAsInt("bFree");
+	return exCmd;
 }
 
 Movement *LoadMovementXML(GameVar *gv, const Common::String &filePrefix, StaticANIObject *aniObj) {
@@ -303,10 +312,10 @@ Movement *LoadMovementXML(GameVar *gv, const Common::String &filePrefix, StaticA
 			dynPhase->load2(fileName);
 			for (GameVar *l = k->_subVars; l; l = l->_nextVarObj) {
 				if (l->_varName == "COMMAND") {
-					ObjstateCommand *ObjstateCmd = LoadStateXML(l);
-					dynPhase->_exCommand.reset(ObjstateCmd);
-					if (ObjstateCmd) {
-						ObjstateCmd->_field_3C = 0;
+					ExCommand *exCmd = LoadStateXML(l);
+					dynPhase->_exCommand.reset(exCmd);
+					if (exCmd) {
+						exCmd->_field_3C = 0;
 					}
 				}
 			}
@@ -358,24 +367,6 @@ void LoadEntranceXML(EntranceInfo *entrance, GameVar *gv) {
 	entrance->_messageQueueId = gv->getPropertyAsInt("nIdQueue");
 }
 
-MessageQueue *LoadQueueXML(GameVar *gv) {
-	MessageQueue *queue = new MessageQueue();
-	queue->_queueName = gv->getPropertyAsString("title");
-	queue->_dataId = gv->getPropertyAsInt("iDataId");
-	queue->setFlags(gv->getSubVarAsInt("dwFlags"));
-	queue->_parId = gv->getSubVarAsInt("iParentId");
-	for (GameVar *i = gv->_subVars; i; i = i->_nextVarObj) {
-		if (i->_varName == "COMMAND") {
-			ExCommand *cmd = static_cast<ExCommand*>(LoadStateXML(i));
-			if (cmd) {
-				cmd->_excFlags |= 2;
-				queue->addExCommandToEnd(cmd);
-			}
-		}
-	}
-	return queue;
-}
-
 void LoadPicAniInfoXML(PicAniInfo *aniInfo, GameVar *gv) {
 	aniInfo->type = gv->getPropertyAsInt("dwObjType");
 	aniInfo->objectId = gv->getPropertyAsInt("nId");
@@ -417,14 +408,21 @@ MctlCompound *LoadMctlCompoundXML(GameVar *gv) {
 				sv = sv->_nextVarObj;
 				if (sv) {
 					if (sv->_varName == "MCTLGRID") {
-						// MctlGrid
+						MctlGrid *mctlGrid = new MctlGrid(800, 600);
+						mctlItem->_motionControllerObj.reset(mctlGrid);
+						mctlGrid->loadFromXML(sv);
 					}
 				}
+			} else if (sv->_varName == "MCTLGRID") {
+				MctlGrid *mctlGrid = new MctlGrid(800, 600);
+				mctlItem->_motionControllerObj.reset(mctlGrid);
+				mctlGrid->loadFromXML(sv);
 			}
 		}
+		mctlCompound->_motionControllers.push_back(mctlItem);
+		sv = sv->_nextVarObj;
 	}
 	return mctlCompound;
-
 }
 
 void GameLoader::loadSceneXML(GameVar *gv)
@@ -517,18 +515,95 @@ void GameLoader::loadSceneXML(GameVar *gv)
 				LoadEntranceXML(&entranceArray[entrance], i);
 				entrance++;
 			} else if (i->_varName == "QUEUE") {
-				scene->_messageQueueList.push_back(LoadQueueXML(i));
+				MessageQueue *mq = new MessageQueue();
+				mq->loadFromXML(i);
+				scene->_messageQueueList.push_back(mq);
 			} else if (i->_varName == "OBJSTATE") {
 				LoadPicAniInfoXML(&objStateArray[objState], i);
 				objState++;
 			} else if (i->_varName == "MCTLCOMPOUND") {
 				mctlCompound = LoadMctlCompoundXML(i);
+			} else if (i->_varName == "DIALOGS") {
+				// CDialogController
 			}
 		}
+		// CGameSounds
+		// CDialogController
+		Sc2 *sc2 = findSc2(scene->_sceneId);
+		if (!sc2) {
+			makeSc2(scene);
+			sc2 = findSc2(scene->_sceneId);
+		} else {
+			sc2->_scene = scene;
+			_gameProject->findSceneTagById(scene->_sceneId)->_scene = scene;
+		}
+		sc2->_defPicAniInfos.assign(objStateArray.begin(), objStateArray.end());
+		sc2->_entranceData.assign(entranceArray.begin(), entranceArray.end());
+		if (sc2->_motionController)
+			delete sc2->_motionController;
+		sc2->_motionController = mctlCompound;
+		Common::String xmlFile = gv->getPropertyAsString("szXmlFile");
+		if (!xmlFile.empty()) {
+			sc2->_sceneFile = xmlFile;
+			if (gv) {
+				delete gv;
+				return;
+			}
+		}
+		// GameVar *gridObj = gv->getSubVarByName("GRIDOBJECTSLIST");
 	}
 }
 
+bool GameLoader::loadSceneXML(int sceneId) {
+	SceneTag *st;
+
+	int idx = getSceneTagBySceneId(sceneId, &st);
+	if (idx < 0)
+		return false;
+	if (!_sc2array[idx]._scene) {
+		if (_sc2array[idx]._sceneFile.empty())
+			return false;
+		XMLLoader *xmlLoader = new XMLLoader(_sc2array[idx]._sceneFile);
+		GameVar *gv = xmlLoader->parseXML();
+		Common::String archiveName = Common::String::format("%08d.nl", sceneId);
+
+		NGIArchive *arch = makeNGIArchive(archiveName);
+
+		loadSceneXML(gv);
+		// TODO: Behavior
+		_inputController->loadSceneFromXML(_sc2array[idx]._sceneId, gv);
+		_sc2array[idx]._scene->_libHandle.reset(arch);
+		delete gv;
+	}
+	return true;
+}
+
 void GameLoader::addSceneXML(int sceneId, const Common::String &fname) {
+	Sc2 sc2;
+	sc2._sceneId = sceneId;
+	sc2._sceneFile = fname;
+	_sc2array.push_back(sc2);
+	SceneTag sceneTag;
+	sceneTag._sceneId = sceneId;
+	_gameProject->_sceneTagList->push_back(sceneTag);
+}
+
+Sc2 *GameLoader::findSc2(int sceneId) {
+	for (int i = 0; i < _sc2array.size(); i++) {
+		if (_sc2array[i]._sceneId == sceneId)
+			return &_sc2array[i];
+	}
+	return nullptr;
+}
+
+void GameLoader::makeSc2(Scene *scene) {
+	Sc2 sc2;
+	sc2._sceneId = scene->_sceneId;
+	sc2._motionController = new MctlCompound();
+	sc2._scene = scene;
+	sc2._sceneFile = Common::String::format("sc%08i.xml", scene->_sceneId);
+	_sc2array.push_back(sc2);
+	_gameProject->addSceneTag(scene);
 }
 
 bool GameLoader::loadScene(int sceneId) {
@@ -539,8 +614,13 @@ bool GameLoader::loadScene(int sceneId) {
 	if (idx < 0)
 		return false;
 
-	if (!st->_scene)
-		st->loadScene();
+	if (!st->_scene) {
+		if (g_nmi->getGameGID() == GID_POPOVICH && !_sc2array[idx]._sceneFile.empty()) {
+			loadSceneXML(sceneId);
+		} else {
+			st->loadScene();
+		}
+	}
 
 	if (st->_scene) {
 		st->_scene->init();
@@ -550,6 +630,8 @@ bool GameLoader::loadScene(int sceneId) {
 
 		_sc2array[idx]._scene = st->_scene;
 		_sc2array[idx]._isLoaded = true;
+
+		// TODO: Popovich dialogs
 
 		return true;
 	}
@@ -806,6 +888,26 @@ bool GameLoader::unloadScene(int sceneId) {
 	_sc2array[sceneTag]._scene = nullptr;
 
 	return true;
+}
+
+Scene *GameLoader::loadScene2(int sceneId) {
+	SceneTag *st;
+	Sc2 *sc;
+
+	int idx = getSceneTagBySceneId(sceneId, &st);
+
+	if (idx < 0)
+		return 0;
+
+	sc = &_sc2array[idx];
+	if (!sc->_scene) {
+		if (!sc->_sceneFile.empty())
+			loadSceneXML(sceneId);
+		loadScene(sceneId);
+	} else if (!sc->_isLoaded) {
+		loadScene(sceneId);
+	}
+	return sc->_scene;
 }
 
 int GameLoader::getSceneTagBySceneId(int sceneId, SceneTag **st) {

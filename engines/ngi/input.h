@@ -42,6 +42,16 @@ struct CursorInfo {
 	CursorInfo() { memset(this, 0, sizeof(*this)); }
 };
 
+struct InputControllerStruct1 {
+	int sceneId;
+	int objectCount;
+	Common::Array<int> objectCursorId;
+	int borderPointCount;
+	Common::Array<Common::Point> borderPoint;
+	int minObjId;
+	int maxObjId;
+};
+
 typedef Common::Array<CursorInfo *> CursorsArray;
 
 class InputController {
@@ -57,6 +67,12 @@ class InputController {
 	Common::Rect _cursorBounds;
 	Picture *_cursorItemPicture;
 
+	Common::Array<InputControllerStruct1> _field_68;
+
+	int _field_28;
+	int _field_2C;
+	int _sceneId;
+
  public:
 	InputController();
 	~InputController();
@@ -69,6 +85,12 @@ class InputController {
 	void setCursor(int id);
 
 	void setCursorItemPicture(Picture *pic) { _cursorItemPicture = pic; }
+	
+	void loadFromXML(GameVar *gv);
+	void loadSceneFromXML(int sceneId, GameVar *gv);
+	int findScene(int sceneId);
+
+	void clean();
 };
 
 } // End of namespace NGI

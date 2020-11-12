@@ -30,6 +30,7 @@ namespace NGI {
 
 class MessageQueue;
 class SceneTagList;
+class SceneTag;
 
 class GameProject : public CObject {
  public:
@@ -41,6 +42,8 @@ class GameProject : public CObject {
  public:
 	GameProject();
 	bool load(MfcArchive &file) override;
+	void addSceneTag(Scene *scene);
+	SceneTag *findSceneTagById(int sceneId);
 };
 
 struct PicAniInfo {
@@ -110,6 +113,8 @@ class GameVar : public CObject {
 	Common::String getPropertyAsString(const Common::String &name);
 	int getPropertyAsInt(const Common::String &name);
 	int getSubVarsCountByName(const Common::String &name);
+	GameVar *getSubVarWithPropertyValue(const Common::String &name, const Common::String &value);
+	void clone(GameVar *gv, int a3, int a4);
 };
 
 } // End of namespace NGI
