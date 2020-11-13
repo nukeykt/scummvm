@@ -297,17 +297,21 @@ bool NGIEngine::loadGam(const char *fname, int scene) {
 
 	_inventory = getGameLoaderInventory();
 
-	if (isDemo() && getLanguage() == Common::RU_RUS) {
-		_inventory->addItem(ANI_INV_HAMMER, 1);
+	if (g_nmi->getGameGID() == GID_POPOVICH) {
+		_inventory->rebuildItemRects();
 	} else {
-		_inventory->setItemFlags(ANI_INV_MAP, 0x10003);
-		_inventory->addItem(ANI_INV_MAP, 1);
+		if (isDemo() && getLanguage() == Common::RU_RUS) {
+			_inventory->addItem(ANI_INV_HAMMER, 1);
+		} else {
+			_inventory->setItemFlags(ANI_INV_MAP, 0x10003);
+			_inventory->addItem(ANI_INV_MAP, 1);
+		}
+
+		_inventory->rebuildItemRects();
+
+		for (uint i = 0; i < _inventory->getScene()->_picObjList.size(); i++)
+			_inventory->getScene()->_picObjList[i]->_picture->MemoryObject::load();
 	}
-
-	_inventory->rebuildItemRects();
-
-	for (uint i = 0; i < _inventory->getScene()->_picObjList.size(); i++)
-		_inventory->getScene()->_picObjList[i]->_picture->MemoryObject::load();
 
 	// _sceneSwitcher = sceneSwitcher; // substituted with direct call
 	_gameLoader->_preloadCallback = preloadCallback;
@@ -622,9 +626,10 @@ bool GameVar::addProperty(const Common::String &key, const Common::String &value
 	var->_varName = key;
 	var->setVar(value);
 	if (var->_varType == 2 && g_nmi->_gameObjH2.contains(var->_value.stringValue)) {
-		free(var->_value.stringValue);
+		char *stringValue = var->_value.stringValue;
 		var->_varType = 0;
-		var->_value.intValue = g_nmi->_gameObjH2[var->_value.stringValue];
+		var->_value.intValue = g_nmi->_gameObjH2[stringValue];
+		free(stringValue);
 	}
 	if (!addPropertyVar(var)) {
 		delete var;

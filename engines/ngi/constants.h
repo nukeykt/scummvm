@@ -1732,6 +1732,9 @@ namespace NGI {
 #define PIC_SCD_FIN 5026
 #define PIC_SCD_SEL 734
 
+// Popovich constants
+#define POPOVICH_SC_COMMON 310
+
 } // End of namespace NGI
 
 #endif /* NGI_CONSTANTS_H */

@@ -28,10 +28,17 @@
 #include "ngi/input.h"
 
 #include "ngi/constants.h"
+#include "ngi/detection.h"
 
 namespace NGI {
 
 void NGIEngine::initObjectStates() {
+	if (g_nmi->getGameGID() == GID_POPOVICH) {
+		for (GameVar *gv = g_nmi->_gameLoader->_logicVar; gv; gv = gv->_nextVarObj) {
+			gv->_value.intValue = 0;
+		}
+		return;
+	}
 	setLevelStates();
 
 	setObjectState(sO_Dude, getObjectEnumState(sO_Dude, sO_NotCarryingEgg));

@@ -122,6 +122,38 @@ void InputController::setCursor(int cursorId) {
 void InputController::loadFromXML(GameVar *gv) {
 	clean();
 	_sceneId = gv->getPropertyAsInt("nIdScene");
+	Scene *scene = g_nmi->_gameLoader->loadScene2(_sceneId);
+	_borderWidth = gv->getPropertyAsInt("nBorderWidth");
+	for (GameVar *sv = gv->_subVars; sv; sv = sv->_nextVarObj) {
+		if (sv->_varName == "CURSOR") {
+			CursorInfo cursor;
+			cursor.pictureId = sv->getPropertyAsInt("id");
+			cursor.hotspotX = sv->getPropertyAsInt("ptHotSpotX");
+			cursor.hotspotY = sv->getPropertyAsInt("ptHotSpotY");
+			cursor.itemPictureOffsX = sv->getPropertyAsInt("ptAttachOfsX");
+			cursor.itemPictureOffsY = sv->getPropertyAsInt("ptAttachOfsY");
+			cursor.picture = scene->getPictureObjectById(cursor.pictureId, 0)->_picture;
+			addCursor(&cursor);
+			Common::String cursorFlags = sv->getPropertyAsString("flags");
+			if (!cursorFlags.empty()) {
+				if (cursorFlags.contains("CURSOR_DEFAULT")) {
+					_defaultCursor = cursor.pictureId;
+				}
+				if (cursorFlags.contains("CURSOR_ITN")) {
+					_itnCursor = cursor.pictureId;
+				}
+				if (cursorFlags.contains("CURSOR_MOVE")) {
+					_moveCursor = cursor.pictureId;
+				}
+				if (cursorFlags.contains("CURSOR_GOLEFT")) {
+					_goLeftCursor = cursor.pictureId;
+				}
+				if (cursorFlags.contains("CURSOR_GORIGHT")) {
+					_goRightCursor = cursor.pictureId;
+				}
+			}
+		}
+	}
 }
 
 void InputController::loadSceneFromXML(int sceneId, GameVar *gv) {

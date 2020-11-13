@@ -306,6 +306,7 @@ public:
 	void sceneAutoScrolling();
 	bool sceneSwitcher(const EntranceInfo &entrance);
 	Scene *accessScene(int sceneId);
+	Scene *accessScene2(int sceneId);
 	void setSceneMusicParameters(GameVar *var);
 	int convertScene(int scene);
 	int getSceneEntrance(int scene);

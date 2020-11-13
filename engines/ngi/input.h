@@ -72,6 +72,12 @@ class InputController {
 	int _field_28;
 	int _field_2C;
 	int _sceneId;
+	int _borderWidth;
+	int _defaultCursor;
+	int _itnCursor;
+	int _moveCursor;
+	int _goLeftCursor;
+	int _goRightCursor;
 
  public:
 	InputController();

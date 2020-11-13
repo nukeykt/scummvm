@@ -108,6 +108,7 @@ public:
 	int getPixelAtPosEx(int x, int y);
 
 	const Bitmap *getConvertedBitmap() const { return _convertedBitmap.get(); }
+	const Bitmap *getBitmap() const { return _bitmap.get(); }
 	const Palette &getPaletteData() const { return _paletteData; }
 	void setPaletteData(const Palette &pal);
 

@@ -194,8 +194,6 @@ bool GameLoader::loadXML(const Common::String &fname) {
 			_logicVar = lv;
 		} else if (gv->_varName == "INPUTCONTROLLER") {
 			_inputController->loadFromXML(gv);
-		} else if (gv->_varName == "INPUTCONTROLLER") {
-
 		}
 		gv = gv->_nextVarObj;
 	}
@@ -278,7 +276,7 @@ ExCommand *LoadStateXML(GameVar *gv) {
 Movement *LoadMovementXML(GameVar *gv, const Common::String &filePrefix, StaticANIObject *aniObj) {
 	if (gv->getPropertyAsInt("nIdMirror"))
 		return nullptr;
-	Movement *movement;
+	Movement *movement = new Movement();
 	int id = gv->getPropertyAsInt("id");
 	movement->_id = id;
 	movement->_objectName = gv->getPropertyAsString("title");
@@ -459,7 +457,7 @@ void GameLoader::loadSceneXML(GameVar *gv)
 				scene->_bigPictureArray[i]->init();
 				dim = scene->_bigPictureArray[i]->getDimensions();
 				height += dim.y;
-				int bitmapType = scene->_bigPictureArray[i]->getConvertedBitmap()->_type;
+				int bitmapType = scene->_bigPictureArray[i]->getBitmap()->_type;
 				if (bitmapType == MKTAG('C', 'B', 0x88, 0x88) || bitmapType == MKTAG('C', 'B', 0x80, 0x08)
 					|| bitmapType == MKTAG('C', 'B', 0x08, 0x88))
 					type = 1;
@@ -467,9 +465,9 @@ void GameLoader::loadSceneXML(GameVar *gv)
 			width += dim.x;
 		}
 
-		byte *data = (byte*)calloc(36, 1);
+		byte *data = (byte*)calloc(48, 1);
 		
-		Common::MemoryWriteStream *s = new Common::MemoryWriteStream(data + 4, 32);
+		Common::MemoryWriteStream *s = new Common::MemoryWriteStream(data + 16, 32);
 
 		s->writeSint32LE(0); // x
 		s->writeSint32LE(0); // y
@@ -482,7 +480,7 @@ void GameLoader::loadSceneXML(GameVar *gv)
 		delete s;
 
 		Bitmap *bitmap = new Bitmap();
-		bitmap->getDibInfo(data, 36);
+		bitmap->getDibInfo(data, 48);
 
 		PictureObject *picObj = new PictureObject();
 		picObj->loadBitmap(bitmap);
@@ -890,7 +888,7 @@ bool GameLoader::unloadScene(int sceneId) {
 	return true;
 }
 
-Scene *GameLoader::loadScene2(int sceneId) {
+Scene *GameLoader::accessSceneXML(int sceneId) {
 	SceneTag *st;
 	Sc2 *sc;
 

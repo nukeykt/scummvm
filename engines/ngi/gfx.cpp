@@ -504,7 +504,7 @@ bool Picture::load(MfcArchive &file) {
 }
 
 void Picture::loadBitmap(Bitmap *bitmap) {
-	_convertedBitmap.reset(bitmap);
+	_bitmap.reset(bitmap);
 	_data = bitmap->_data;
 	_dataSize = bitmap->_dataSize + 32;
 	_width = bitmap->_width;
@@ -571,6 +571,8 @@ void Picture::getDibInfo() {
 
 	_bitmap->_data = _data;
 	_bitmap->_dataSize = off - 32;
+	if (g_nmi->getGameGID() == GID_POPOVICH)
+		return; // FIXME
 	_bitmap->decode(_data, _paletteData.size ? _paletteData : *g_nmi->_globalPalette);
 }
 

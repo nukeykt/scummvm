@@ -150,8 +150,11 @@ void MemoryObject::load2(const Common::String &filename) {
 	}
 
 	if (g_nmi->_currArchive) {
+		_mflags = 1;
 		_mfield_14 = 0;
 		_libHandle = g_nmi->_currArchive;
+	} else {
+		_mflags |= 1;
 	}
 }
 

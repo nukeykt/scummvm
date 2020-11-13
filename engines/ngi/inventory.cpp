@@ -27,6 +27,7 @@
 #include "ngi/gameloader.h"
 #include "ngi/statics.h"
 #include "ngi/input.h"
+#include "ngi/detection.h"
 
 namespace NGI {
 
@@ -222,7 +223,7 @@ int Inventory2::getItemFlags(int itemId) {
 void Inventory2::rebuildItemRects() {
 	debugC(2, kDebugInventory, "rebuildItemRects()");
 
-	_scene = g_nmi->accessScene(_sceneId);
+	_scene = g_nmi->accessScene2(_sceneId);
 
 	if (!_scene)
 		return;
@@ -230,7 +231,10 @@ void Inventory2::rebuildItemRects() {
 	_inventoryIcons.clear();
 
 	_picture = _scene->getBigPicture(0, 0);
-	_picture->setAlpha(50);
+	if (g_nmi->getGameGID() == GID_POPOVICH)
+		_picture->setAlpha(50);
+	else
+		_picture->setAlpha(50);
 
 	int itemX = 9;
 	int itemY = 0;

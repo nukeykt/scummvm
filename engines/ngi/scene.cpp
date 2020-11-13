@@ -29,6 +29,7 @@
 #include "ngi/gameloader.h"
 
 #include "ngi/constants.h"
+#include "ngi/detection.h"
 
 #include "common/algorithm.h"
 #include "graphics/surface.h"
@@ -36,6 +37,23 @@
 namespace NGI {
 
 Scene *NGIEngine::accessScene(int sceneId) {
+	if (getGameGID() == GID_POPOVICH) {
+		Scene *scene = 0;
+		SceneTag *t = 0;
+
+		for (SceneTagList::iterator s = _gameProject->_sceneTagList->begin(); s != _gameProject->_sceneTagList->end(); ++s) {
+			if (s->_sceneId == sceneId) {
+				if (t->_scene) {
+					scene = t->_scene;
+					continue;
+				}
+				if (_gameLoader->loadSceneXML(sceneId))
+					scene = _gameLoader->accessSceneXML(sceneId);
+			}
+		}
+
+		return scene;
+	}
 	SceneTag *t = 0;
 
 	for (SceneTagList::iterator s = _gameProject->_sceneTagList->begin(); s != _gameProject->_sceneTagList->end(); ++s) {
@@ -53,6 +71,13 @@ Scene *NGIEngine::accessScene(int sceneId) {
 	}
 
 	return t->_scene;
+}
+
+Scene *NGIEngine::accessScene2(int sceneId) {
+	if (getGameGID() == GID_POPOVICH) {
+		return _gameLoader->accessSceneXML(sceneId);
+	}
+	return accessScene(sceneId);
 }
 
 bool SceneTagList::load(MfcArchive &file) {
